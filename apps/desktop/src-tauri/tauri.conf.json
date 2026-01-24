@@ -1,0 +1,41 @@
+{
+    "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/tauri-v2.5.0/crates/tauri-cli/schema.json",
+    "productName": "NeuroPixel",
+    "version": "0.1.0",
+    "identifier": "com.neuropixel.app",
+    "build": {
+        "beforeDevCommand": "cd ../web-client && npm run dev",
+        "devUrl": "http://localhost:5173",
+        "beforeBuildCommand": "cd ../web-client && npm run build",
+        "frontendDist": "../web-client/dist"
+    },
+    "app": {
+        "withGlobalTauri": true,
+        "windows": [
+            {
+                "title": "NeuroPixel - Scientific Image Analysis",
+                "width": 1400,
+                "height": 900,
+                "minWidth": 1200,
+                "minHeight": 700,
+                "resizable": true,
+                "fullscreen": false,
+                "decorations": true
+            }
+        ],
+        "security": {
+            "csp": null
+        }
+    },
+    "bundle": {
+        "active": true,
+        "targets": "all",
+        "icon": [
+            "icons/32x32.png",
+            "icons/128x128.png",
+            "icons/128x128@2x.png",
+            "icons/icon.icns",
+            "icons/icon.ico"
+        ]
+    }
+}

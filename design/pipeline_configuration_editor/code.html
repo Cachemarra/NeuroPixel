@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Pipeline Configuration Editor</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#3c83f6",
+                        "background-light": "#f5f7f8",
+                        "background-dark": "#101722",
+                        "node-bg": "#18181b", // Zinc 900
+                        "node-header": "#27272a", // Zinc 800
+                        "canvas-bg": "#09090b", // Zinc 950
+                        "border-dark": "#27272a", // Zinc 800
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        /* Custom grid pattern for the canvas */
+        .bg-grid-pattern {
+            background-size: 20px 20px;
+            background-image: radial-gradient(#3f3f46 1px, transparent 1px);
+        }
+        
+        /* Node connection socket style */
+        .socket {
+            width: 12px;
+            height: 12px;
+            background-color: #52525b; /* Zinc 600 */
+            border: 2px solid #27272a; /* Zinc 800 */
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .socket:hover {
+            background-color: #3c83f6; /* Primary */
+            border-color: white;
+        }
+        .socket.input { left: -6px; }
+        .socket.output { right: -6px; }
+
+        /* Custom scrollbar for dark theme */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #18181b; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3f3f46; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #52525b; 
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display h-screen w-screen overflow-hidden text-white selection:bg-primary/30">
+<!-- Background Application Simulation (Blurred) -->
+<div aria-hidden="true" class="absolute inset-0 z-0 flex flex-col pointer-events-none opacity-20 filter blur-sm select-none">
+<div class="h-14 bg-zinc-900 border-b border-zinc-800 w-full"></div>
+<div class="flex flex-1">
+<div class="w-64 bg-zinc-900 border-r border-zinc-800"></div>
+<div class="flex-1 bg-zinc-950 p-8 grid grid-cols-3 gap-4">
+<div class="bg-zinc-800 h-40 rounded"></div>
+<div class="bg-zinc-800 h-40 rounded"></div>
+<div class="bg-zinc-800 h-40 rounded"></div>
+<div class="bg-zinc-800 h-60 col-span-2 rounded"></div>
+</div>
+</div>
+</div>
+<!-- Modal Overlay -->
+<div class="relative z-10 flex h-full w-full items-center justify-center bg-black/60 backdrop-blur-sm p-4 lg:p-10">
+<!-- Main Modal Window -->
+<div class="flex flex-col w-full h-full max-w-[1400px] max-h-[900px] bg-node-bg border border-border-dark rounded-lg shadow-2xl overflow-hidden animate-fade-in-up">
+<!-- Header -->
+<div class="flex flex-shrink-0 items-center justify-between border-b border-border-dark bg-node-bg px-6 py-4">
+<div class="flex flex-col gap-0.5">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary text-2xl">hub</span>
+<h1 class="text-xl font-bold tracking-tight text-white">Pipeline Configuration</h1>
+</div>
+<p class="text-zinc-400 text-xs font-mono ml-9">ID: Untitled_Pipeline_01 • Modified: Just now</p>
+</div>
+<div class="flex items-center gap-2">
+<div class="flex bg-zinc-900/50 rounded-lg p-1 border border-zinc-800 mr-4">
+<button class="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded transition-colors" title="Zoom In">
+<span class="material-symbols-outlined text-[20px]">add</span>
+</button>
+<button class="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded transition-colors" title="Zoom Out">
+<span class="material-symbols-outlined text-[20px]">remove</span>
+</button>
+<button class="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded transition-colors" title="Fit to Screen">
+<span class="material-symbols-outlined text-[20px]">center_focus_strong</span>
+</button>
+</div>
+<button class="flex items-center gap-2 bg-primary hover:bg-blue-600 text-white px-4 py-2 rounded text-sm font-semibold transition-colors shadow-[0_0_15px_rgba(60,131,246,0.3)]">
+<span class="material-symbols-outlined text-[20px]">add_circle</span>
+<span>Add Node</span>
+</button>
+<button class="ml-4 p-2 text-zinc-500 hover:text-white transition-colors">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+</div>
+<!-- Canvas Area (Node Editor) -->
+<div class="relative flex-1 bg-canvas-bg bg-grid-pattern overflow-hidden cursor-grab active:cursor-grabbing group">
+<!-- SVG Wires Layer -->
+<svg class="absolute inset-0 w-full h-full pointer-events-none z-10 overflow-visible">
+<defs>
+<lineargradient id="wireGradient" x1="0%" x2="100%" y1="0%" y2="0%">
+<stop offset="0%" stop-color="#3c83f6" stop-opacity="0.6"></stop>
+<stop offset="100%" stop-color="#3c83f6" stop-opacity="1"></stop>
+</lineargradient>
+</defs>
+<!-- Wire 1: Input to Gaussian -->
+<path class="drop-shadow-[0_0_5px_rgba(60,131,246,0.5)]" d="M 330 180 C 430 180, 430 240, 530 240" fill="none" stroke="url(#wireGradient)" stroke-width="3"></path>
+<!-- Wire 2: Gaussian to Otsu -->
+<path class="drop-shadow-[0_0_5px_rgba(60,131,246,0.5)]" d="M 830 240 C 900 240, 900 240, 970 240" fill="none" stroke="#3c83f6" stroke-width="3"></path>
+<!-- Wire 3: Otsu to Save -->
+<path class="opacity-50" d="M 1270 240 C 1320 240, 1320 380, 1370 380" fill="none" stroke="#52525b" stroke-dasharray="5,5" stroke-width="3"></path>
+</svg>
+<!-- Node 1: Input Image -->
+<div class="absolute top-[100px] left-[50px] w-72 rounded bg-node-bg border border-zinc-700 shadow-xl z-20 flex flex-col">
+<div class="h-10 bg-node-header border-b border-zinc-800 rounded-t flex items-center justify-between px-3">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-orange-400 text-sm">image</span>
+<span class="text-sm font-semibold text-white">Input Image</span>
+</div>
+<span class="material-symbols-outlined text-zinc-500 text-sm cursor-pointer hover:text-white">more_vert</span>
+</div>
+<div class="p-3 flex flex-col gap-3">
+<div class="relative w-full aspect-video bg-black rounded overflow-hidden border border-zinc-800">
+<img class="object-cover w-full h-full opacity-80 hover:opacity-100 transition-opacity" data-alt="Abstract colorful gradient representing raw data input" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB0MT-7u0tmqAssClYbrwQfSFgi07hCchAvXDS1oAFEUsqxi9rfkftqZYSSSg1Rl2JQwQBWF7txpDIxCRyGQB_WjiCPMHWV9AiHxYghED-8OKY7URy__YCgcvsn8Vc3DQqYSE5qvf-k6R8PgyOkp-eekb0QEJWRJNKhZW3OnrgfcqZIklqikrw7eraDHUZAWVh73hke93cq1jvBaxExbWmOzgGRwzBbNFZ1ovEOFuu1ps4pKfoExSa5popMOZySxQYJuFpc20nEQA"/>
+<div class="absolute bottom-1 right-1 bg-black/70 px-1.5 py-0.5 rounded text-[10px] font-mono text-zinc-300">RAW</div>
+</div>
+<div class="flex flex-col gap-1">
+<label class="text-[10px] uppercase tracking-wider text-zinc-500 font-bold">Source</label>
+<select class="w-full bg-zinc-900 border border-zinc-700 text-xs text-white rounded p-1.5 focus:border-primary focus:ring-0">
+<option>Camera 01 (GigE)</option>
+<option>File System</option>
+</select>
+</div>
+</div>
+<!-- Output Socket -->
+<div class="socket output" title="Image Out"></div>
+</div>
+<!-- Node 2: Gaussian Blur -->
+<div class="absolute top-[140px] left-[530px] w-80 rounded bg-node-bg border border-primary shadow-[0_0_15px_rgba(60,131,246,0.15)] z-30 flex flex-col ring-1 ring-primary/30">
+<div class="h-10 bg-gradient-to-r from-primary/20 to-node-header border-b border-primary/30 rounded-t flex items-center justify-between px-3">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-sm">blur_on</span>
+<span class="text-sm font-semibold text-white">Gaussian Blur</span>
+</div>
+<span class="flex h-2 w-2 rounded-full bg-primary animate-pulse"></span>
+</div>
+<div class="p-4 flex flex-col gap-4">
+<!-- Sigma Slider -->
+<div class="flex flex-col gap-2">
+<div class="flex justify-between items-center">
+<label class="text-xs text-zinc-400">Sigma</label>
+<span class="text-xs font-mono text-primary bg-primary/10 px-1.5 rounded">2.5</span>
+</div>
+<div class="relative flex items-center h-4">
+<div class="absolute w-full h-1 bg-zinc-700 rounded-full"></div>
+<div class="absolute h-1 bg-primary rounded-full" style="width: 45%;"></div>
+<div class="absolute h-4 w-4 bg-white rounded-full shadow cursor-pointer border-2 border-primary left-[45%] -ml-2"></div>
+</div>
+</div>
+<!-- Kernel Size -->
+<div class="flex flex-col gap-1">
+<label class="text-xs text-zinc-400">Kernel Size</label>
+<div class="grid grid-cols-3 gap-2">
+<button class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs py-1 rounded border border-zinc-700">3x3</button>
+<button class="bg-primary text-white text-xs py-1 rounded border border-blue-500 font-bold">5x5</button>
+<button class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs py-1 rounded border border-zinc-700">7x7</button>
+</div>
+</div>
+</div>
+<!-- Sockets -->
+<div class="socket input" title="Image In"></div>
+<div class="socket output" title="Blurred Image Out"></div>
+</div>
+<!-- Node 3: Otsu Threshold -->
+<div class="absolute top-[180px] left-[970px] w-72 rounded bg-node-bg border border-zinc-700 shadow-xl z-20 flex flex-col hover:border-zinc-500 transition-colors">
+<div class="h-10 bg-node-header border-b border-zinc-800 rounded-t flex items-center justify-between px-3">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-emerald-400 text-sm">contrast</span>
+<span class="text-sm font-semibold text-white">Otsu Threshold</span>
+</div>
+</div>
+<div class="p-3 flex flex-col gap-3">
+<div class="flex items-center justify-between bg-black/40 p-2 rounded border border-zinc-800/50">
+<span class="text-xs text-zinc-500">Auto-Level</span>
+<span class="text-sm font-mono text-emerald-400 font-bold">128</span>
+</div>
+<div class="flex gap-2">
+<div class="h-16 flex-1 bg-zinc-900 rounded border border-zinc-800 flex items-end justify-between px-1 pb-1 gap-0.5 overflow-hidden">
+<!-- Fake histogram bars -->
+<div class="w-1 bg-zinc-700 h-[20%]"></div>
+<div class="w-1 bg-zinc-700 h-[40%]"></div>
+<div class="w-1 bg-zinc-700 h-[60%]"></div>
+<div class="w-1 bg-zinc-700 h-[30%]"></div>
+<div class="w-1 bg-emerald-500 h-[90%] shadow-[0_0_5px_rgba(16,185,129,0.5)]"></div> <!-- Threshold line -->
+<div class="w-1 bg-zinc-700 h-[50%]"></div>
+<div class="w-1 bg-zinc-700 h-[20%]"></div>
+<div class="w-1 bg-zinc-700 h-[10%]"></div>
+</div>
+</div>
+</div>
+<!-- Sockets -->
+<div class="socket input" title="Image In"></div>
+<div class="socket output" title="Mask Out"></div>
+</div>
+<!-- Node 4: Save to CSV -->
+<div class="absolute top-[320px] left-[1370px] w-80 rounded bg-node-bg border border-zinc-700 shadow-xl z-20 flex flex-col">
+<div class="h-10 bg-node-header border-b border-zinc-800 rounded-t flex items-center justify-between px-3">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-purple-400 text-sm">save</span>
+<span class="text-sm font-semibold text-white">Save Results</span>
+</div>
+</div>
+<div class="p-4 flex flex-col gap-3">
+<div class="flex flex-col gap-1">
+<label class="text-[10px] uppercase tracking-wider text-zinc-500 font-bold">Output Path</label>
+<div class="flex items-center gap-2">
+<input class="w-full bg-zinc-900 border border-zinc-700 text-xs text-zinc-300 rounded p-1.5 focus:border-primary focus:ring-0 font-mono" type="text" value="./output/results.csv"/>
+<button class="p-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded text-zinc-400">
+<span class="material-symbols-outlined text-[16px]">folder_open</span>
+</button>
+</div>
+</div>
+<div class="flex items-center gap-2 mt-1">
+<div class="h-2 w-2 rounded-full bg-yellow-500"></div>
+<span class="text-xs text-yellow-500">Waiting for input...</span>
+</div>
+</div>
+<!-- Sockets -->
+<div class="socket input" title="Data In"></div>
+</div>
+<!-- Floating Help/Info -->
+<div class="absolute bottom-6 left-6 pointer-events-none">
+<div class="bg-zinc-900/80 backdrop-blur border border-zinc-700 p-3 rounded-lg max-w-xs shadow-lg">
+<div class="flex items-start gap-2">
+<span class="material-symbols-outlined text-primary text-sm mt-0.5">info</span>
+<div class="flex flex-col gap-1">
+<p class="text-xs text-white font-medium">Auto-Save Enabled</p>
+<p class="text-[10px] text-zinc-400 leading-tight">Changes to the node graph are automatically saved to your local workspace config.</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer Action Bar -->
+<div class="flex-shrink-0 h-16 bg-node-bg border-t border-border-dark flex items-center justify-between px-6 z-20">
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-green-500 text-lg">check_circle</span>
+<span class="text-sm text-zinc-300 font-medium">Valid Configuration</span>
+</div>
+<span class="h-4 w-px bg-zinc-700"></span>
+<span class="text-xs text-zinc-500">4 Nodes, 3 Connections</span>
+</div>
+<div class="flex items-center gap-3">
+<button class="px-4 py-2 text-sm font-medium text-zinc-400 hover:text-white transition-colors">
+                        Cancel
+                    </button>
+<button class="px-4 py-2 text-sm font-medium text-zinc-300 border border-zinc-700 rounded bg-zinc-800 hover:bg-zinc-700 hover:text-white transition-colors">
+                        Save as Preset
+                    </button>
+<button class="group relative flex items-center gap-2 bg-white text-black px-5 py-2 rounded-sm text-sm font-bold hover:bg-zinc-200 transition-all active:scale-95 shadow-[0_0_15px_rgba(255,255,255,0.15)]">
+<span class="material-symbols-outlined text-[20px] group-hover:rotate-180 transition-transform duration-500">play_arrow</span>
+<span>Run Batch on Folder...</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</body></html>

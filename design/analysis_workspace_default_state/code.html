@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>NeuroPixel - Analysis Workspace</title>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#3c83f6",
+                        "background-light": "#f5f7f8",
+                        "background-dark": "#09090b", /* Zinc-950 */
+                        "surface-dark": "#18181b", /* Zinc-900 */
+                        "panel-dark": "#27272a", /* Zinc-800 */
+                        "border-dark": "#3f3f46", /* Zinc-700 */
+                        "text-secondary": "#a1a1aa", /* Zinc-400 */
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"],
+                        "mono": ["JetBrains Mono", "monospace"],
+                    },
+                    borderRadius: { "DEFAULT": "0.125rem", "sm": "0.125rem", "md": "0.25rem", "lg": "0.375rem", "xl": "0.5rem", "full": "9999px" },
+                },
+            },
+        }
+    </script>
+<style>
+        /* Custom Scrollbar for dense UI */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #18181b; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3f3f46; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #52525b; 
+        }
+        
+        /* Range Slider Styling */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 14px;
+            width: 14px;
+            border-radius: 50%;
+            background: #3c83f6;
+            cursor: pointer;
+            margin-top: -5px; 
+            border: 2px solid #18181b;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #3f3f46;
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-white font-display overflow-hidden h-screen flex flex-col">
+<!-- Top Navigation Bar -->
+<header class="flex shrink-0 items-center justify-between border-b border-border-dark bg-surface-dark px-4 py-2 h-12 z-20">
+<div class="flex items-center gap-4 text-white">
+<div class="flex items-center gap-2">
+<div class="size-5 text-primary">
+<svg fill="currentColor" viewbox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+<path d="M4 4H17.3334V17.3334H30.6666V30.6666H44V44H4V4Z"></path>
+</svg>
+</div>
+<h2 class="text-white text-base font-bold tracking-tight">NeuroPixel</h2>
+</div>
+<div class="h-4 w-px bg-border-dark mx-2"></div>
+<div class="flex items-center gap-6">
+<a class="text-text-secondary hover:text-white text-xs font-medium transition-colors" href="#">File</a>
+<a class="text-text-secondary hover:text-white text-xs font-medium transition-colors" href="#">Edit</a>
+<a class="text-text-secondary hover:text-white text-xs font-medium transition-colors" href="#">View</a>
+<a class="text-text-secondary hover:text-white text-xs font-medium transition-colors" href="#">Window</a>
+<a class="text-text-secondary hover:text-white text-xs font-medium transition-colors" href="#">Help</a>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-2 text-text-secondary text-xs font-mono">
+<span class="w-2 h-2 rounded-full bg-green-500"></span>
+                GPU Active
+            </div>
+<div class="bg-center bg-no-repeat bg-cover rounded-full size-8 border border-border-dark" data-alt="User avatar profile picture" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBWjCjwXmHHutw6nTD1kL5zNu3a8bC30r2VALmuFKijck7JCENbzWl3w-SB2o5OPMoGwNGc6Z3AWUtSMIZpENA5n6ZH2eeCbkj659PkNCkG6Q9Cc-FiJrLii62NrHF8cPHs3rTWUrCzHQLrywgVhBxGZ6baEPpE6iVcVNpAYy2qV1luw1uEL2nvNQoczXwv-GJVMTHXRHXXs9TRLz38g8w3Axe7AZMIH0hP21iy6gYKsjWr6B9dEzrBgWbaxU7WBJLqkqGRv6iJRQ");'></div>
+</div>
+</header>
+<!-- Main Workspace Layout -->
+<div class="flex flex-1 overflow-hidden">
+<!-- Left Sidebar: Toolbox (300px) -->
+<aside class="w-[300px] flex flex-col border-r border-border-dark bg-surface-dark shrink-0 z-10">
+<!-- File Explorer Section -->
+<div class="flex flex-col border-b border-border-dark h-1/3 min-h-[200px]">
+<div class="px-4 py-2 border-b border-border-dark flex justify-between items-center bg-panel-dark">
+<h3 class="text-xs font-semibold uppercase tracking-wider text-text-secondary">Explorer</h3>
+<div class="flex gap-2">
+<span class="material-symbols-outlined text-text-secondary text-[16px] cursor-pointer hover:text-white">folder_open</span>
+<span class="material-symbols-outlined text-text-secondary text-[16px] cursor-pointer hover:text-white">refresh</span>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto p-2 space-y-1">
+<!-- File Item: Active -->
+<div class="flex items-center gap-3 bg-primary/20 border border-primary/30 px-2 py-2 rounded-sm cursor-pointer group">
+<div class="bg-center bg-no-repeat bg-cover rounded-sm size-10 shrink-0" data-alt="Microscopic cell thumbnail blue" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuCVEblmISSKPdF8AvzQt26XRPE0nuOWqdhu9O8RChcV10RAytJgFyAAfek4mcBXWLQA0UnB8p49hwXZPeuuWAPpLXLlzB9_vzxjF54Lz_Jw2QtSIiC6NIBBS4i8Xsozg0BRJL4kzbJf39Q9n223HRbvxWeYivT0nJyLMaujGSJ3xxcmrmSnXoi4KLn3dtp9cFtGZLaYbJsVeQAY7WaPH0hDmlNVWdRlt5Xa6Dv1Z0I7nNmp6jbowrOdj85lzhoi82pn_t8KfQVHyg");'></div>
+<div class="flex flex-col min-w-0">
+<p class="text-white text-xs font-medium truncate font-mono">sample_001.tiff</p>
+<p class="text-primary text-[10px] truncate">Active • 16-bit</p>
+</div>
+</div>
+<!-- File Item -->
+<div class="flex items-center gap-3 hover:bg-panel-dark px-2 py-2 rounded-sm cursor-pointer transition-colors">
+<div class="bg-center bg-no-repeat bg-cover rounded-sm size-10 shrink-0 opacity-70" data-alt="Microscopic cell thumbnail red" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDN8JQt78i24fEULaen5H9gmIfyhfKkrbeYn1zMAjCmUSSpPvWOIhtxGsQ7dD9AfNeO0X9hvAX2dae0hIlWCJVUsN0WwvWxmiqE8JNIRQntjPTIBaIVkjGIf0KyJdoXjt5IhlpOafyCN6OzBdpwqH1GP9uB-dXTovM6al0Lj8p2OvFvWfgf3-BUMt6_2nFXtGtaravGQ151OQ4bN6RNVee925WFly6ZX5wa4KkGPemOoFMKOXfB756yp4jOeHRfRGBDkhJ-IeW2gw");'></div>
+<div class="flex flex-col min-w-0">
+<p class="text-text-secondary text-xs font-medium truncate font-mono">control_grp_b.png</p>
+<p class="text-text-secondary/60 text-[10px] truncate">512x512 • 8-bit</p>
+</div>
+</div>
+<!-- File Item -->
+<div class="flex items-center gap-3 hover:bg-panel-dark px-2 py-2 rounded-sm cursor-pointer transition-colors">
+<div class="bg-center bg-no-repeat bg-cover rounded-sm size-10 shrink-0 opacity-70" data-alt="Microscopic cell thumbnail green" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDgX1ejCygSNgSSbghcBo6SMy-BmuGonYXCe0htXOMz1vu3Qd1ZcrIt3NEnEjmEF_8dKT4K5q5xPNoGWkGETPwuBQqk67AsxWLbDuY69Jx0zlXlDh0JTQHeszlGpWsFYs5NqAzlX8xIzyGwWXo3hjk51POEEE5xKeWjFoDVJS4t4Pt8XEWR-7sVGtpAhiuGvXGBM2U48W2AJRNqvHWvZhikfseRPB6OYgJ3ecRpfWPbEAUCXKff61L4oR0J2pwsjG7uBRR3Eok6Zw");'></div>
+<div class="flex flex-col min-w-0">
+<p class="text-text-secondary text-xs font-medium truncate font-mono">dataset_v2_final.raw</p>
+<p class="text-text-secondary/60 text-[10px] truncate">2048x2048 • 32-bit</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Operations Accordion -->
+<div class="flex-1 overflow-y-auto border-b border-border-dark flex flex-col">
+<div class="px-4 py-2 border-b border-border-dark bg-panel-dark">
+<h3 class="text-xs font-semibold uppercase tracking-wider text-text-secondary">Operations</h3>
+</div>
+<div class="p-2 space-y-2">
+<!-- Accordion Item: Preprocessing (Active Tool) -->
+<details class="flex flex-col rounded-sm border border-border-dark bg-surface-dark group" open="">
+<summary class="flex cursor-pointer items-center justify-between px-3 py-2 bg-panel-dark select-none">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[18px]">tune</span>
+<p class="text-white text-xs font-medium">Preprocessing</p>
+</div>
+<span class="material-symbols-outlined text-text-secondary group-open:rotate-180 transition-transform text-[18px]">expand_more</span>
+</summary>
+<!-- Canny Edge Tool Panel -->
+<div class="p-3 bg-surface-dark space-y-4 border-t border-border-dark">
+<div class="flex justify-between items-center">
+<span class="text-xs text-primary font-medium">Active: Canny Edge</span>
+<span class="material-symbols-outlined text-text-secondary text-[14px] cursor-pointer hover:text-white">settings</span>
+</div>
+<!-- Sigma Slider -->
+<div class="space-y-1">
+<div class="flex justify-between text-[10px] text-text-secondary uppercase">
+<span>Sigma</span>
+<span class="font-mono text-white">1.50</span>
+</div>
+<input class="h-1 bg-border-dark rounded-lg appearance-none cursor-pointer" max="5" min="0" step="0.1" type="range" value="1.5"/>
+</div>
+<!-- Dual Threshold Inputs -->
+<div class="grid grid-cols-2 gap-2">
+<div class="space-y-1">
+<label class="text-[10px] text-text-secondary uppercase block">Low Thresh</label>
+<div class="flex items-center bg-background-dark border border-border-dark rounded-sm px-2 py-1 focus-within:border-primary transition-colors">
+<input class="bg-transparent border-none p-0 w-full text-xs font-mono text-white focus:ring-0" type="number" value="50"/>
+</div>
+</div>
+<div class="space-y-1">
+<label class="text-[10px] text-text-secondary uppercase block">High Thresh</label>
+<div class="flex items-center bg-background-dark border border-border-dark rounded-sm px-2 py-1 focus-within:border-primary transition-colors">
+<input class="bg-transparent border-none p-0 w-full text-xs font-mono text-white focus:ring-0" type="number" value="150"/>
+</div>
+</div>
+</div>
+<button class="w-full bg-primary hover:bg-blue-600 text-white text-xs font-medium py-1.5 rounded-sm transition-colors mt-2">
+                                Apply Filter
+                            </button>
+</div>
+</details>
+<!-- Accordion Item: Segmentation -->
+<details class="flex flex-col rounded-sm border border-border-dark bg-surface-dark group">
+<summary class="flex cursor-pointer items-center justify-between px-3 py-2 bg-surface-dark hover:bg-panel-dark transition-colors select-none">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-text-secondary text-[18px]">category</span>
+<p class="text-text-secondary text-xs font-medium">Segmentation</p>
+</div>
+<span class="material-symbols-outlined text-text-secondary group-open:rotate-180 transition-transform text-[18px]">expand_more</span>
+</summary>
+</details>
+<!-- Accordion Item: Morphology -->
+<details class="flex flex-col rounded-sm border border-border-dark bg-surface-dark group">
+<summary class="flex cursor-pointer items-center justify-between px-3 py-2 bg-surface-dark hover:bg-panel-dark transition-colors select-none">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-text-secondary text-[18px]">blur_on</span>
+<p class="text-text-secondary text-xs font-medium">Morphology</p>
+</div>
+<span class="material-symbols-outlined text-text-secondary group-open:rotate-180 transition-transform text-[18px]">expand_more</span>
+</summary>
+</details>
+</div>
+</div>
+<div class="p-3 mt-auto border-t border-border-dark bg-panel-dark">
+<p class="text-[10px] text-text-secondary font-mono">v2.4.1-beta</p>
+</div>
+</aside>
+<!-- Center Viewport: Canvas -->
+<main class="flex-1 flex flex-col bg-background-dark relative min-w-0">
+<!-- Viewport Controls -->
+<div class="h-12 border-b border-border-dark bg-surface-dark px-4 flex items-center justify-between shrink-0">
+<!-- Segmented Control -->
+<div class="bg-background-dark p-1 rounded-md border border-border-dark flex gap-1">
+<button class="px-3 py-1 bg-primary text-white text-xs font-medium rounded-sm shadow-sm">Single</button>
+<button class="px-3 py-1 text-text-secondary hover:text-white text-xs font-medium rounded-sm hover:bg-panel-dark transition-colors">Compare</button>
+<button class="px-3 py-1 text-text-secondary hover:text-white text-xs font-medium rounded-sm hover:bg-panel-dark transition-colors">Batch</button>
+</div>
+<div class="flex items-center gap-3">
+<span class="text-xs text-text-secondary font-mono">50% Zoom</span>
+<div class="h-4 w-px bg-border-dark"></div>
+<span class="text-xs text-text-secondary font-mono">1024x1024px</span>
+</div>
+</div>
+<!-- Canvas Area -->
+<div class="flex-1 relative overflow-hidden flex items-center justify-center bg-[#101012] bg-[radial-gradient(#27272a_1px,transparent_1px)] [background-size:16px_16px]">
+<!-- The Scientific Image -->
+<div class="relative shadow-2xl shadow-black/50 border border-border-dark">
+<div class="w-[500px] h-[500px] bg-black bg-center bg-cover" data-alt="Microscopic fluorescent cell imagery, green and blue structures on black background" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBR1EqzuozP56IapQ5RyUno1-3wU9sCx3ja26hbncrx4Z6alOlq9JwEjTKM8_IVml4XXd_lGOwTQnXcM13TnEwaj1HE9sh_XI__YpHrJFiL4sXP7duU9lkmw7HTJhi-vItCHG1JCqfhKE2yc9ALNz2v8gN2iK6sykvQSdqooomm8UBfhfDb4DIg6pSLvSjAJ2EYHUBPUXJwJYiV0sDb8gdJa8l6LZbAGFvcWO4pkiL8LRG_BCm2u_zAYG3UmYYw_UlNvE5z42FZOQ");'>
+<!-- Overlay for ROI visualization -->
+<div class="absolute top-1/4 left-1/4 w-32 h-32 border border-primary/80 bg-primary/10 backdrop-blur-[1px]">
+<div class="absolute -top-4 left-0 bg-primary text-white text-[10px] px-1 font-mono">ROI 1</div>
+<!-- Resize handles -->
+<div class="absolute -top-1 -left-1 w-2 h-2 bg-white border border-primary"></div>
+<div class="absolute -top-1 -right-1 w-2 h-2 bg-white border border-primary"></div>
+<div class="absolute -bottom-1 -left-1 w-2 h-2 bg-white border border-primary"></div>
+<div class="absolute -bottom-1 -right-1 w-2 h-2 bg-white border border-primary"></div>
+</div>
+</div>
+</div>
+<!-- Floating HUD -->
+<div class="absolute bottom-6 left-1/2 -translate-x-1/2 bg-surface-dark/90 backdrop-blur-md border border-border-dark rounded-md shadow-lg p-1 flex gap-2">
+<button class="p-2 hover:bg-panel-dark text-text-secondary hover:text-white rounded-sm transition-colors" title="Pan">
+<span class="material-symbols-outlined text-[20px]">pan_tool</span>
+</button>
+<div class="w-px bg-border-dark my-1"></div>
+<button class="p-2 hover:bg-panel-dark text-text-secondary hover:text-white rounded-sm transition-colors" title="Zoom In">
+<span class="material-symbols-outlined text-[20px]">add</span>
+</button>
+<button class="p-2 hover:bg-panel-dark text-text-secondary hover:text-white rounded-sm transition-colors" title="Zoom Out">
+<span class="material-symbols-outlined text-[20px]">remove</span>
+</button>
+<button class="p-2 hover:bg-panel-dark text-text-secondary hover:text-white rounded-sm transition-colors" title="Fit to Screen">
+<span class="material-symbols-outlined text-[20px]">fit_screen</span>
+</button>
+<div class="w-px bg-border-dark my-1"></div>
+<button class="p-2 hover:bg-panel-dark text-primary hover:text-blue-400 bg-primary/10 rounded-sm transition-colors" title="ROI Selection">
+<span class="material-symbols-outlined text-[20px]">crop_free</span>
+</button>
+</div>
+</div>
+</main>
+<!-- Right Sidebar: Inspector (350px) -->
+<aside class="w-[350px] flex flex-col border-l border-border-dark bg-surface-dark shrink-0 z-10">
+<!-- Histogram Section -->
+<div class="flex flex-col h-1/3 min-h-[250px] border-b border-border-dark">
+<div class="px-4 py-2 border-b border-border-dark bg-panel-dark flex justify-between items-center">
+<h3 class="text-xs font-semibold uppercase tracking-wider text-text-secondary">Histogram (RGB)</h3>
+<span class="material-symbols-outlined text-text-secondary text-[16px] cursor-pointer">more_horiz</span>
+</div>
+<div class="p-4 flex-1 flex items-end justify-between gap-1 relative bg-surface-dark overflow-hidden">
+<!-- Fake Histogram visualization using Tailwind gradients and bars -->
+<div class="absolute inset-x-4 bottom-4 top-4 flex items-end gap-[2px] opacity-80">
+<!-- Red Channel -->
+<div class="w-1/3 h-full flex items-end gap-[1px]">
+<div class="w-1 bg-red-500/50 h-[20%] rounded-t-sm"></div>
+<div class="w-1 bg-red-500/50 h-[40%] rounded-t-sm"></div>
+<div class="w-1 bg-red-500/50 h-[80%] rounded-t-sm"></div>
+<div class="w-1 bg-red-500/50 h-[60%] rounded-t-sm"></div>
+<div class="w-1 bg-red-500/50 h-[30%] rounded-t-sm"></div>
+<div class="w-1 bg-red-500/50 h-[45%] rounded-t-sm"></div>
+<div class="w-1 bg-red-500/50 h-[90%] rounded-t-sm"></div>
+<div class="w-1 bg-red-500/50 h-[55%] rounded-t-sm"></div>
+<div class="w-1 bg-red-500/50 h-[25%] rounded-t-sm"></div>
+</div>
+<!-- Green Channel (Dominant in cell imagery) -->
+<div class="w-1/3 h-full flex items-end gap-[1px]">
+<div class="w-1 bg-green-500/50 h-[30%] rounded-t-sm"></div>
+<div class="w-1 bg-green-500/50 h-[50%] rounded-t-sm"></div>
+<div class="w-1 bg-green-500/50 h-[95%] rounded-t-sm"></div>
+<div class="w-1 bg-green-500/50 h-[70%] rounded-t-sm"></div>
+<div class="w-1 bg-green-500/50 h-[40%] rounded-t-sm"></div>
+<div class="w-1 bg-green-500/50 h-[60%] rounded-t-sm"></div>
+<div class="w-1 bg-green-500/50 h-[85%] rounded-t-sm"></div>
+<div class="w-1 bg-green-500/50 h-[45%] rounded-t-sm"></div>
+<div class="w-1 bg-green-500/50 h-[20%] rounded-t-sm"></div>
+</div>
+<!-- Blue Channel -->
+<div class="w-1/3 h-full flex items-end gap-[1px]">
+<div class="w-1 bg-blue-500/50 h-[10%] rounded-t-sm"></div>
+<div class="w-1 bg-blue-500/50 h-[20%] rounded-t-sm"></div>
+<div class="w-1 bg-blue-500/50 h-[40%] rounded-t-sm"></div>
+<div class="w-1 bg-blue-500/50 h-[30%] rounded-t-sm"></div>
+<div class="w-1 bg-blue-500/50 h-[15%] rounded-t-sm"></div>
+<div class="w-1 bg-blue-500/50 h-[25%] rounded-t-sm"></div>
+<div class="w-1 bg-blue-500/50 h-[35%] rounded-t-sm"></div>
+<div class="w-1 bg-blue-500/50 h-[20%] rounded-t-sm"></div>
+<div class="w-1 bg-blue-500/50 h-[10%] rounded-t-sm"></div>
+</div>
+</div>
+<!-- Axis Labels -->
+<div class="absolute bottom-0 left-4 right-4 flex justify-between text-[9px] text-text-secondary font-mono">
+<span>0</span>
+<span>128</span>
+<span>255</span>
+</div>
+</div>
+</div>
+<!-- Statistics Grid -->
+<div class="flex flex-col flex-1 overflow-y-auto">
+<div class="px-4 py-2 border-b border-border-dark bg-panel-dark">
+<h3 class="text-xs font-semibold uppercase tracking-wider text-text-secondary">Statistics</h3>
+</div>
+<div class="p-4">
+<div class="grid grid-cols-2 gap-px bg-border-dark border border-border-dark rounded-sm overflow-hidden">
+<!-- Stat Item -->
+<div class="bg-surface-dark p-3 flex flex-col gap-1">
+<span class="text-[10px] uppercase text-text-secondary">Mean Intensity</span>
+<span class="text-sm text-white font-mono">124.52</span>
+</div>
+<!-- Stat Item -->
+<div class="bg-surface-dark p-3 flex flex-col gap-1">
+<span class="text-[10px] uppercase text-text-secondary">Std Dev</span>
+<span class="text-sm text-white font-mono">42.10</span>
+</div>
+<!-- Stat Item -->
+<div class="bg-surface-dark p-3 flex flex-col gap-1">
+<span class="text-[10px] uppercase text-text-secondary">Entropy</span>
+<span class="text-sm text-white font-mono">4.21</span>
+</div>
+<!-- Stat Item -->
+<div class="bg-surface-dark p-3 flex flex-col gap-1">
+<span class="text-[10px] uppercase text-text-secondary">Kurtosis</span>
+<span class="text-sm text-white font-mono">0.85</span>
+</div>
+<!-- Stat Item -->
+<div class="bg-surface-dark p-3 flex flex-col gap-1">
+<span class="text-[10px] uppercase text-text-secondary">Skewness</span>
+<span class="text-sm text-white font-mono">-0.12</span>
+</div>
+<!-- Stat Item -->
+<div class="bg-surface-dark p-3 flex flex-col gap-1">
+<span class="text-[10px] uppercase text-text-secondary">Max Value</span>
+<span class="text-sm text-white font-mono">255</span>
+</div>
+</div>
+<!-- Additional Details -->
+<div class="mt-6 space-y-3">
+<div class="flex justify-between items-center border-b border-border-dark pb-2">
+<span class="text-xs text-text-secondary">Color Space</span>
+<span class="text-xs text-white font-medium">RGB (sRGB)</span>
+</div>
+<div class="flex justify-between items-center border-b border-border-dark pb-2">
+<span class="text-xs text-text-secondary">Bit Depth</span>
+<span class="text-xs text-white font-medium">16-bit Unsigned</span>
+</div>
+<div class="flex justify-between items-center border-b border-border-dark pb-2">
+<span class="text-xs text-text-secondary">Dimensions</span>
+<span class="text-xs text-white font-medium">1024 x 1024</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Bottom Inspector Action -->
+<div class="p-4 border-t border-border-dark bg-panel-dark">
+<button class="w-full bg-surface-dark hover:bg-border-dark border border-border-dark text-text-secondary hover:text-white text-xs font-medium py-2 rounded-sm transition-colors flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-[16px]">download</span>
+                    Export Statistics CSV
+                </button>
+</div>
+</aside>
+</div>
+</body></html>

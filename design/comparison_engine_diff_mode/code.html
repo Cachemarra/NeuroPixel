@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>NeuroPixel Comparison Engine</title>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#3c83f6",
+                        "background-light": "#f5f7f8",
+                        "background-dark": "#101722",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"],
+                        "mono": ["JetBrains Mono", "monospace"],
+                    },
+                    borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+                },
+            },
+        }
+    </script>
+<style>
+        /* Custom scrollbar for dark technical feel */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #101722; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #282e39; 
+            border-radius: 2px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #3b4454; 
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-white font-display overflow-hidden h-screen flex w-full">
+<!-- Left Navigation Sidebar -->
+<aside class="w-64 flex flex-col border-r border-slate-200 dark:border-white/10 bg-background-light dark:bg-background-dark z-20 flex-shrink-0">
+<!-- Brand Header -->
+<div class="h-16 flex items-center gap-3 px-4 border-b border-slate-200 dark:border-white/10">
+<div class="bg-center bg-no-repeat bg-cover rounded-full size-8 bg-primary/20 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[20px]">blur_on</span>
+</div>
+<div class="flex flex-col">
+<h1 class="text-base font-semibold leading-none tracking-tight">NeuroPixel</h1>
+<p class="text-slate-500 dark:text-[#9ca7ba] text-xs font-normal mt-1">v2.4.1 (Pro)</p>
+</div>
+</div>
+<!-- Navigation Items -->
+<nav class="flex-1 p-2 space-y-1 overflow-y-auto">
+<a class="flex items-center gap-3 px-3 py-2 rounded text-slate-600 dark:text-[#9ca7ba] hover:bg-slate-200 dark:hover:bg-[#1f2633] transition-colors group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-primary">folder_open</span>
+<span class="text-sm font-medium">Projects</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded text-slate-600 dark:text-[#9ca7ba] hover:bg-slate-200 dark:hover:bg-[#1f2633] transition-colors group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-primary">database</span>
+<span class="text-sm font-medium">Datasets</span>
+</a>
+<div class="my-2 border-t border-slate-200 dark:border-white/10"></div>
+<div class="px-3 py-2 text-xs font-bold text-slate-400 dark:text-[#5a6b85] uppercase tracking-wider">Analysis</div>
+<a class="flex items-center gap-3 px-3 py-2 rounded text-slate-600 dark:text-[#9ca7ba] hover:bg-slate-200 dark:hover:bg-[#1f2633] transition-colors group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-primary">psychology</span>
+<span class="text-sm font-medium">Model Training</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded bg-primary/10 text-primary" href="#">
+<span class="material-symbols-outlined text-[20px] fill-current">compare</span>
+<span class="text-sm font-medium">Comparison Engine</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded text-slate-600 dark:text-[#9ca7ba] hover:bg-slate-200 dark:hover:bg-[#1f2633] transition-colors group" href="#">
+<span class="material-symbols-outlined text-[20px] group-hover:text-primary">bar_chart</span>
+<span class="text-sm font-medium">Analytics</span>
+</a>
+</nav>
+<!-- Bottom Actions -->
+<div class="p-4 border-t border-slate-200 dark:border-white/10">
+<a class="flex items-center gap-3 px-3 py-2 rounded text-slate-600 dark:text-[#9ca7ba] hover:bg-slate-200 dark:hover:bg-[#1f2633] transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">settings</span>
+<span class="text-sm font-medium">Settings</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-[#0b0e14]">
+<!-- Top Toolbar (Control Deck) -->
+<header class="h-16 flex items-center justify-between px-4 gap-4 border-b border-slate-200 dark:border-white/10 bg-background-light dark:bg-background-dark z-10 shadow-sm dark:shadow-none">
+<!-- Source Selectors -->
+<div class="flex items-center gap-3 flex-1 max-w-2xl">
+<!-- Source A -->
+<div class="relative group flex-1">
+<label class="absolute -top-2.5 left-2 bg-background-light dark:bg-background-dark px-1 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider z-10">Original</label>
+<div class="relative">
+<select class="w-full h-10 pl-3 pr-8 bg-white dark:bg-[#1b2027] border border-slate-300 dark:border-[#3b4454] rounded text-sm text-slate-900 dark:text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary appearance-none cursor-pointer font-mono">
+<option value="raw_0041">scan_0041_raw.tiff</option>
+<option value="raw_0042">scan_0042_raw.tiff</option>
+<option value="raw_0043">scan_0043_raw.tiff</option>
+</select>
+<div class="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-slate-400">
+<span class="material-symbols-outlined text-lg">expand_more</span>
+</div>
+</div>
+</div>
+<div class="text-slate-400 dark:text-slate-600">
+<span class="material-symbols-outlined text-lg">arrow_forward</span>
+</div>
+<!-- Source B -->
+<div class="relative group flex-1">
+<label class="absolute -top-2.5 left-2 bg-background-light dark:bg-background-dark px-1 text-[10px] font-bold text-primary uppercase tracking-wider z-10">Processed</label>
+<div class="relative">
+<select class="w-full h-10 pl-3 pr-8 bg-white dark:bg-[#1b2027] border border-slate-300 dark:border-[#3b4454] rounded text-sm text-slate-900 dark:text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary appearance-none cursor-pointer font-mono">
+<option value="proc_v4_0041">model_v4_output.tiff</option>
+<option value="proc_v4_0042">model_v4_output_hq.tiff</option>
+<option value="proc_v3_0041">model_v3_legacy.tiff</option>
+</select>
+<div class="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-slate-400">
+<span class="material-symbols-outlined text-lg">expand_more</span>
+</div>
+</div>
+</div>
+</div>
+<!-- View Mode Segmented Controls -->
+<div class="flex bg-slate-200 dark:bg-[#282e39] p-1 rounded h-10 items-center">
+<label class="cursor-pointer relative px-4 h-full flex items-center justify-center rounded transition-all text-slate-500 dark:text-[#9ca7ba] hover:text-slate-900 dark:hover:text-white has-[:checked]:bg-white dark:has-[:checked]:bg-[#111418] has-[:checked]:shadow-sm has-[:checked]:text-primary dark:has-[:checked]:text-primary font-medium text-xs">
+<span class="flex items-center gap-2">
+<span class="material-symbols-outlined text-lg">splitscreen</span>
+<span>Side-by-Side</span>
+</span>
+<input checked="" class="sr-only" name="view_mode" type="radio" value="sbs"/>
+</label>
+<label class="cursor-pointer relative px-4 h-full flex items-center justify-center rounded transition-all text-slate-500 dark:text-[#9ca7ba] hover:text-slate-900 dark:hover:text-white has-[:checked]:bg-white dark:has-[:checked]:bg-[#111418] has-[:checked]:shadow-sm has-[:checked]:text-primary dark:has-[:checked]:text-primary font-medium text-xs">
+<span class="flex items-center gap-2">
+<span class="material-symbols-outlined text-lg">compare</span>
+<span>Swipe</span>
+</span>
+<input class="sr-only" name="view_mode" type="radio" value="swipe"/>
+</label>
+<label class="cursor-pointer relative px-4 h-full flex items-center justify-center rounded transition-all text-slate-500 dark:text-[#9ca7ba] hover:text-slate-900 dark:hover:text-white has-[:checked]:bg-white dark:has-[:checked]:bg-[#111418] has-[:checked]:shadow-sm has-[:checked]:text-primary dark:has-[:checked]:text-primary font-medium text-xs">
+<span class="flex items-center gap-2">
+<span class="material-symbols-outlined text-lg">blur_on</span>
+<span>Heatmap</span>
+</span>
+<input class="sr-only" name="view_mode" type="radio" value="heatmap"/>
+</label>
+</div>
+<!-- Sync Button -->
+<button class="h-10 px-4 flex items-center gap-2 bg-primary hover:bg-blue-600 text-white rounded shadow-sm hover:shadow transition-all text-xs font-bold tracking-wide uppercase">
+<span class="material-symbols-outlined text-[18px]">lock</span>
+                Sync Pan/Zoom
+            </button>
+</header>
+<!-- Canvas Workspace -->
+<div class="flex-1 flex relative overflow-hidden bg-[#05080f]">
+<!-- Grid Background Pattern -->
+<div class="absolute inset-0 z-0 opacity-10 pointer-events-none" style="background-image: linear-gradient(#334155 1px, transparent 1px), linear-gradient(90deg, #334155 1px, transparent 1px); background-size: 40px 40px;">
+</div>
+<!-- Left Canvas (Original) -->
+<div class="flex-1 relative border-r border-slate-800 group overflow-hidden">
+<!-- Image Container -->
+<div class="w-full h-full flex items-center justify-center p-8">
+<div class="relative w-full h-full max-w-2xl max-h-[600px] shadow-2xl border border-slate-800 bg-black">
+<img alt="Original Scan" class="w-full h-full object-cover opacity-80 filter grayscale contrast-125" data-alt="Microscopic texture resembling neural networks in black and white" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAww9dMAjNKH5p8yamVDV7InxXkihD_GchdkJTWMBby2YCd3iA6vuZwvTpb4xfCkeSKCR00oylXx_hgrIBxNQRI7qQffDqmhpivcx-YlNrXSShni73l5BY0oLRHXkkjYf7Ud2UcFUXb4a7xPxVtueQLXvzwnOYsFvL2cWvQaPHENAdr4gWfTVKBQHA_t4jc3shELEFjV0vHK0CBUC6iDy5CKoA6QF5EY3cLOMngDqUZD9XtnHisVXlXN86ufjXb9sofOmoG7E2r_w"/>
+<!-- Crosshair Overlay -->
+<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 border border-primary/50 rounded-full flex items-center justify-center pointer-events-none">
+<div class="w-1 h-1 bg-primary rounded-full"></div>
+</div>
+</div>
+</div>
+<!-- HUD Overlays -->
+<div class="absolute top-4 left-4 bg-black/60 backdrop-blur-sm border border-white/10 px-2 py-1 rounded text-xs font-mono text-slate-300">
+                    SRC: scan_0041_raw.tiff
+                </div>
+<div class="absolute bottom-4 left-4 flex gap-2">
+<div class="bg-black/80 backdrop-blur-sm border border-white/10 px-2 py-1 rounded text-[10px] font-mono text-primary font-bold">
+                        ZOOM: 125%
+                    </div>
+<div class="bg-black/80 backdrop-blur-sm border border-white/10 px-2 py-1 rounded text-[10px] font-mono text-slate-400">
+                        X: 1042 Y: 512
+                    </div>
+</div>
+</div>
+<!-- Right Canvas (Processed) -->
+<div class="flex-1 relative group overflow-hidden">
+<!-- Image Container -->
+<div class="w-full h-full flex items-center justify-center p-8">
+<div class="relative w-full h-full max-w-2xl max-h-[600px] shadow-2xl border border-slate-800 bg-black">
+<img alt="Processed Scan" class="w-full h-full object-cover opacity-100 filter contrast-150 brightness-110 sepia-[.2] hue-rotate-180 saturate-50" data-alt="Enhanced neural network scan with increased sharpness and contrast" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBFkoVCbEbDwAaR3fWzy3rgIpme-XDESD1bMS3Ug0GQJybJXsVWuvHGinFU14a1oOFL7hAamoa9ITWW8BighrcN7lWja8DYk7m_xivmaPc46z2SNpSnaivvSeWvX8Iqrr3oHlBguYPW4mEWqnIjncIjSO_3tgTZnlEJeM-HXM6CtoTLUKV-WbOcIpznycPrgksmhimRcvr_7ZBQnA_JJz0nrR2bjp-OVdeZS69Ict3AC2RhycnJ7Rak99xi0UQ-jcdIkscfavAE5Q"/>
+<!-- Crosshair Overlay (Synced) -->
+<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 border border-primary/50 rounded-full flex items-center justify-center pointer-events-none">
+<div class="w-1 h-1 bg-primary rounded-full"></div>
+</div>
+</div>
+</div>
+<!-- HUD Overlays -->
+<div class="absolute top-4 left-4 bg-black/60 backdrop-blur-sm border border-white/10 px-2 py-1 rounded text-xs font-mono text-slate-300">
+                   SRC: model_v4_output.tiff
+               </div>
+<div class="absolute bottom-4 left-4 flex gap-2">
+<div class="bg-black/80 backdrop-blur-sm border border-white/10 px-2 py-1 rounded text-[10px] font-mono text-primary font-bold">
+                       ZOOM: 125%
+                   </div>
+<div class="bg-black/80 backdrop-blur-sm border border-white/10 px-2 py-1 rounded text-[10px] font-mono text-slate-400">
+                       X: 1042 Y: 512
+                   </div>
+</div>
+</div>
+</div>
+</main>
+<!-- Right Sidebar (Metrics & Reports) -->
+<aside class="w-80 bg-background-light dark:bg-background-dark border-l border-slate-200 dark:border-white/10 flex flex-col z-20 flex-shrink-0">
+<!-- Header -->
+<div class="h-16 px-5 flex items-center justify-between border-b border-slate-200 dark:border-white/10">
+<h2 class="text-sm font-semibold uppercase tracking-wide text-slate-700 dark:text-slate-200">Similarity Report</h2>
+<button class="text-slate-400 hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[20px]">download</span>
+</button>
+</div>
+<div class="flex-1 overflow-y-auto p-5 space-y-6">
+<!-- Overall Status -->
+<div class="flex items-center gap-3 p-3 rounded bg-emerald-500/10 border border-emerald-500/20">
+<span class="material-symbols-outlined text-emerald-500">check_circle</span>
+<div class="flex flex-col">
+<span class="text-xs font-bold text-emerald-500 uppercase">Match Passed</span>
+<span class="text-[10px] text-slate-500 dark:text-slate-400">Threshold &gt; 0.90 met</span>
+</div>
+</div>
+<!-- Metrics Grid -->
+<div class="grid gap-3">
+<!-- SSIM Card -->
+<div class="p-4 rounded bg-white dark:bg-[#1b2027] border border-slate-200 dark:border-[#3b4454] shadow-sm relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-2 opacity-50 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-slate-600 text-[16px]">info</span>
+</div>
+<p class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Structural Similarity (SSIM)</p>
+<div class="flex items-baseline gap-2">
+<span class="text-2xl font-mono font-bold text-emerald-500">0.9241</span>
+<span class="text-xs font-medium text-emerald-600 bg-emerald-100 dark:bg-emerald-500/10 px-1.5 py-0.5 rounded">+0.02</span>
+</div>
+<div class="w-full bg-slate-100 dark:bg-slate-700 h-1 mt-3 rounded-full overflow-hidden">
+<div class="bg-emerald-500 h-full rounded-full" style="width: 92%"></div>
+</div>
+</div>
+<!-- PSNR Card -->
+<div class="p-4 rounded bg-white dark:bg-[#1b2027] border border-slate-200 dark:border-[#3b4454] shadow-sm">
+<p class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Peak Signal-to-Noise (PSNR)</p>
+<div class="flex items-baseline gap-2">
+<span class="text-2xl font-mono font-bold text-amber-500">28.4 dB</span>
+<span class="text-xs font-medium text-slate-400">avg</span>
+</div>
+<div class="w-full bg-slate-100 dark:bg-slate-700 h-1 mt-3 rounded-full overflow-hidden">
+<div class="bg-amber-500 h-full rounded-full" style="width: 65%"></div>
+</div>
+</div>
+<!-- MSE Card -->
+<div class="p-4 rounded bg-white dark:bg-[#1b2027] border border-slate-200 dark:border-[#3b4454] shadow-sm">
+<p class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Mean Squared Error (MSE)</p>
+<div class="flex items-baseline gap-2">
+<span class="text-2xl font-mono font-bold text-slate-700 dark:text-slate-300">154.2</span>
+</div>
+<div class="w-full bg-slate-100 dark:bg-slate-700 h-1 mt-3 rounded-full overflow-hidden">
+<div class="bg-slate-400 h-full rounded-full" style="width: 25%"></div>
+</div>
+</div>
+</div>
+<!-- Histogram Mini -->
+<div class="pt-4 border-t border-slate-200 dark:border-white/10">
+<div class="flex justify-between items-center mb-3">
+<p class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Luma Distribution</p>
+<span class="text-[10px] text-primary cursor-pointer hover:underline">Detailed View</span>
+</div>
+<div class="h-24 w-full flex items-end justify-between gap-[2px]">
+<!-- Simulated Histogram Bars -->
+<div class="w-1 bg-slate-700 h-[20%]"></div>
+<div class="w-1 bg-slate-700 h-[30%]"></div>
+<div class="w-1 bg-slate-700 h-[45%]"></div>
+<div class="w-1 bg-slate-600 h-[40%]"></div>
+<div class="w-1 bg-slate-600 h-[60%]"></div>
+<div class="w-1 bg-slate-600 h-[75%]"></div>
+<div class="w-1 bg-slate-500 h-[80%]"></div>
+<div class="w-1 bg-slate-500 h-[90%]"></div>
+<div class="w-1 bg-slate-500 h-[65%]"></div>
+<div class="w-1 bg-slate-500 h-[50%]"></div>
+<div class="w-1 bg-slate-500 h-[55%]"></div>
+<div class="w-1 bg-slate-400 h-[60%]"></div>
+<div class="w-1 bg-slate-400 h-[70%]"></div>
+<div class="w-1 bg-slate-400 h-[85%]"></div>
+<div class="w-1 bg-primary/40 h-[95%]"></div>
+<div class="w-1 bg-primary/60 h-[80%]"></div>
+<div class="w-1 bg-primary h-[60%]"></div>
+<div class="w-1 bg-primary/60 h-[50%]"></div>
+<div class="w-1 bg-slate-400 h-[40%]"></div>
+<div class="w-1 bg-slate-500 h-[30%]"></div>
+<div class="w-1 bg-slate-600 h-[20%]"></div>
+<div class="w-1 bg-slate-700 h-[10%]"></div>
+</div>
+<div class="flex justify-between mt-1 text-[10px] font-mono text-slate-500">
+<span>0</span>
+<span>128</span>
+<span>255</span>
+</div>
+</div>
+<!-- Metadata Table -->
+<div class="pt-4 border-t border-slate-200 dark:border-white/10">
+<p class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">Metadata Diff</p>
+<div class="text-xs font-mono space-y-2">
+<div class="flex justify-between">
+<span class="text-slate-500">Resolution</span>
+<span class="text-slate-200">2048x2048 <span class="text-slate-600">vs</span> 2048x2048</span>
+</div>
+<div class="flex justify-between">
+<span class="text-slate-500">Channels</span>
+<span class="text-slate-200">1 (Gray) <span class="text-slate-600">vs</span> 1 (Gray)</span>
+</div>
+<div class="flex justify-between">
+<span class="text-slate-500">Bit Depth</span>
+<span class="text-slate-200">16-bit <span class="text-slate-600">vs</span> <span class="text-amber-500">32-bit (Float)</span></span>
+</div>
+</div>
+</div>
+</div>
+</aside>
+</body></html>

@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "neuropixel-backend"
+version = "0.1.0"
+description = "NeuroPixel - Scientific Image Analysis Backend"
+authors = ["NeuroPixel Team"]
+readme = "README.md"
+packages = [{include = "app"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = "^0.109.0"
+uvicorn = {extras = ["standard"], version = "^0.27.0"}
+pydantic = "^2.5.0"
+numpy = "^1.26.0"
+opencv-python-headless = "^4.9.0"
+tifffile = "^2024.1.30"
+scikit-image = "^0.22.0"
+scikit-learn = "^1.4.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0.0"
+httpx = "^0.26.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

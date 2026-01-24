@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    image: neuropixel-backend:dev
+    container_name: neuropixel-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./apps/backend:/app
+      - backend-cache:/root/.cache
+    environment:
+      - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONUNBUFFERED=1
+    command: poetry run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  web-client:
+    build:
+      context: ./apps/web-client
+      dockerfile: Dockerfile
+    image: neuropixel-web:dev
+    container_name: neuropixel-web
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./apps/web-client:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    command: npm run dev -- --host
+    depends_on:
+      - backend
+
+volumes:
+  backend-cache:
