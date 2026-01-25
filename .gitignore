@@ -1,0 +1,99 @@
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.nfs*
+
+# IDEs and editors
+.vscode/
+!.vscode/extensions.json
+.idea/
+*.sublime-project
+*.sublime-workspace
+.project
+.classpath
+.settings/
+.nbproject/
+.history/
+
+# Node.js
+node_modules/
+dist/
+build/
+.npm/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.eslintcache
+.next/
+out/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.venv/
+venv/
+ENV/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.coverage
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+
+# Rust / Tauri
+target/
+src-tauri/target/
+src-tauri/binaries/
+src-tauri/gen/
+!src-tauri/binaries/.gitkeep
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+
+# Logs
+logs/
+*.log
+
+# Docker
+.docker/
+
+# Databases
+*.db
+*.sqlite
+
+# Large data files / project specific
+data/
+output/
+temp/
+tmp/
