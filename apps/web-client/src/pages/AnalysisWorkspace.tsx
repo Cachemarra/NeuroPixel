@@ -1,11 +1,114 @@
 /**
  * AnalysisWorkspace - Main analysis view with file explorer, operations, and inspector panels
- * Extracted from: design/analysis_workspace_default_state/code.html
+ * PHASE 3: Dynamic plugin system with auto-generated UI
  */
 
+import { useRef, useState, useEffect } from 'react'
+import { useAppStore } from '@/store/appStore'
+import { useImageUpload } from '@/hooks/useImageUpload'
+import { usePluginsByCategory } from '@/hooks/usePlugins'
+import { PluginController } from '@/components/PluginController'
+import type { PluginSpec } from '@/types/plugin'
+
+const API_BASE = 'http://localhost:8000'
+
 export function AnalysisWorkspace() {
+    const fileInputRef = useRef<HTMLInputElement>(null)
+    const { images, activeImageId, setActiveImage, addImage, isUploading } = useAppStore()
+    const { uploadImage } = useImageUpload()
+    const { categories, isLoading: pluginsLoading } = usePluginsByCategory()
+
+    // Fetch images from backend on mount
+    useEffect(() => {
+        const fetchImages = async () => {
+            try {
+                const response = await fetch(`${API_BASE}/images`)
+                if (!response.ok) return
+                const data = await response.json()
+                data.forEach((img: any) => {
+                    addImage({
+                        id: img.id,
+                        name: img.name,
+                        url: img.url,
+                        thumbnailUrl: img.thumbnail_url,
+                        sourceId: img.source_id,
+                        isResult: !!img.source_id,
+                        metadata: {
+                            width: img.metadata.width,
+                            height: img.metadata.height,
+                            channels: img.metadata.channels,
+                            bitDepth: img.metadata.bit_depth,
+                            fileSize: img.metadata.file_size,
+                        }
+                    })
+                })
+            } catch (error) {
+                console.error('Failed to fetch images:', error)
+            }
+        }
+        fetchImages()
+    }, [])
+
+    // Track which plugin is currently selected
+
+    const [activePlugin, setActivePlugin] = useState<PluginSpec | null>(null)
+    const [openCategory, setOpenCategory] = useState<string | null>(null)
+
+    // Get active image data
+    const activeImage = images.find(img => img.id === activeImageId)
+
+    const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files
+        if (!files || files.length === 0) return
+
+        for (const file of Array.from(files)) {
+            await uploadImage(file)
+        }
+
+        e.target.value = ''
+    }
+
+    const handleImportClick = () => {
+        fileInputRef.current?.click()
+    }
+
+    const handleCategoryToggle = (category: string) => {
+        if (openCategory === category) {
+            setOpenCategory(null)
+        } else {
+            setOpenCategory(category)
+            // Auto-select first plugin in category
+            const plugins = categories[category]
+            if (plugins && plugins.length > 0) {
+                setActivePlugin(plugins[0])
+            }
+        }
+    }
+
+    const handlePluginSelect = (plugin: PluginSpec) => {
+        setActivePlugin(plugin)
+    }
+
+    // Category icon mapping
+    const categoryIcons: Record<string, string> = {
+        'Preprocessing': 'tune',
+        'Edge Detection': 'line_curve',
+        'Segmentation': 'category',
+        'Morphology': 'blur_on',
+    }
+
     return (
         <>
+            {/* Hidden file input */}
+            <input
+                ref={fileInputRef}
+                type="file"
+                accept=".png,.jpg,.jpeg,.tif,.tiff,.bmp"
+                multiple
+                onChange={handleFileSelect}
+                className="hidden"
+            />
+
             {/* Left Sidebar: Toolbox (300px) */}
             <aside className="w-[300px] flex flex-col border-r border-border-dark bg-surface-dark shrink-0 z-10">
                 {/* File Explorer Section */}
@@ -13,109 +116,146 @@ export function AnalysisWorkspace() {
                     <div className="px-4 py-2 border-b border-border-dark flex justify-between items-center bg-panel-dark">
                         <h3 className="text-xs font-semibold uppercase tracking-wider text-text-secondary">Explorer</h3>
                         <div className="flex gap-2">
+                            <button
+                                onClick={handleImportClick}
+                                className="material-symbols-outlined text-text-secondary text-[16px] cursor-pointer hover:text-white hover:text-primary transition-colors"
+                                title="Import Images"
+                            >
+                                add_photo_alternate
+                            </button>
                             <span className="material-symbols-outlined text-text-secondary text-[16px] cursor-pointer hover:text-white">folder_open</span>
                             <span className="material-symbols-outlined text-text-secondary text-[16px] cursor-pointer hover:text-white">refresh</span>
                         </div>
                     </div>
                     <div className="flex-1 overflow-y-auto p-2 space-y-1">
-                        {/* File Item: Active */}
-                        <div className="flex items-center gap-3 bg-primary/20 border border-primary/30 px-2 py-2 rounded-sm cursor-pointer group">
-                            <div className="bg-gradient-to-br from-blue-500 to-cyan-400 rounded-sm size-10 shrink-0"></div>
-                            <div className="flex flex-col min-w-0">
-                                <p className="text-white text-xs font-medium truncate font-mono">sample_001.tiff</p>
-                                <p className="text-primary text-[10px] truncate">Active • 16-bit</p>
+                        {/* Upload indicator */}
+                        {isUploading && (
+                            <div className="flex items-center gap-3 bg-primary/10 border border-primary/20 px-2 py-2 rounded-sm animate-pulse">
+                                <div className="size-10 shrink-0 bg-primary/20 rounded-sm flex items-center justify-center">
+                                    <span className="material-symbols-outlined text-primary text-[18px] animate-spin">progress_activity</span>
+                                </div>
+                                <div className="flex flex-col min-w-0">
+                                    <p className="text-primary text-xs font-medium">Uploading...</p>
+                                </div>
                             </div>
-                        </div>
-                        {/* File Item */}
-                        <div className="flex items-center gap-3 hover:bg-panel-dark px-2 py-2 rounded-sm cursor-pointer transition-colors">
-                            <div className="bg-gradient-to-br from-red-500 to-orange-400 rounded-sm size-10 shrink-0 opacity-70"></div>
-                            <div className="flex flex-col min-w-0">
-                                <p className="text-text-secondary text-xs font-medium truncate font-mono">control_grp_b.png</p>
-                                <p className="text-text-secondary/60 text-[10px] truncate">512x512 • 8-bit</p>
+                        )}
+
+                        {/* Empty state */}
+                        {images.length === 0 && !isUploading && (
+                            <div
+                                className="flex flex-col items-center justify-center py-8 text-center cursor-pointer hover:bg-panel-dark rounded-sm transition-colors"
+                                onClick={handleImportClick}
+                            >
+                                <span className="material-symbols-outlined text-text-secondary/50 text-4xl mb-2">add_photo_alternate</span>
+                                <p className="text-text-secondary/50 text-xs">Click to import images</p>
+                                <p className="text-text-secondary/30 text-[10px] mt-1">PNG, JPG, TIFF supported</p>
                             </div>
-                        </div>
-                        {/* File Item */}
-                        <div className="flex items-center gap-3 hover:bg-panel-dark px-2 py-2 rounded-sm cursor-pointer transition-colors">
-                            <div className="bg-gradient-to-br from-green-500 to-emerald-400 rounded-sm size-10 shrink-0 opacity-70"></div>
-                            <div className="flex flex-col min-w-0">
-                                <p className="text-text-secondary text-xs font-medium truncate font-mono">dataset_v2_final.raw</p>
-                                <p className="text-text-secondary/60 text-[10px] truncate">2048x2048 • 32-bit</p>
-                            </div>
-                        </div>
+                        )}
+
+                        {/* Dynamic file list from store */}
+                        {images.map((image) => {
+                            const isActive = image.id === activeImageId
+                            return (
+                                <div
+                                    key={image.id}
+                                    onClick={() => setActiveImage(image.id)}
+                                    className={`flex items-center gap-3 px-2 py-2 rounded-sm cursor-pointer transition-colors ${isActive
+                                        ? 'bg-primary/20 border border-primary/30'
+                                        : 'hover:bg-panel-dark border border-transparent'
+                                        }`}
+                                >
+                                    {/* Thumbnail */}
+                                    <div
+                                        className="rounded-sm size-10 shrink-0 bg-cover bg-center border border-border-dark"
+                                        style={{ backgroundImage: `url(${image.thumbnailUrl})` }}
+                                    />
+                                    <div className="flex flex-col min-w-0">
+                                        <p className={`text-xs font-medium truncate font-mono ${isActive ? 'text-white' : 'text-text-secondary'}`}>
+                                            {image.name}
+                                        </p>
+                                        <p className={`text-[10px] truncate ${isActive ? 'text-primary' : 'text-text-secondary/60'}`}>
+                                            {isActive ? 'Active • ' : ''}{image.metadata.width}x{image.metadata.height} • {image.metadata.bitDepth}
+                                        </p>
+                                    </div>
+                                </div>
+                            )
+                        })}
                     </div>
                 </div>
 
-                {/* Operations Accordion */}
+                {/* Operations Accordion - DYNAMIC */}
                 <div className="flex-1 overflow-y-auto border-b border-border-dark flex flex-col">
                     <div className="px-4 py-2 border-b border-border-dark bg-panel-dark">
                         <h3 className="text-xs font-semibold uppercase tracking-wider text-text-secondary">Operations</h3>
                     </div>
                     <div className="p-2 space-y-2">
-                        {/* Accordion Item: Preprocessing (Active Tool) */}
-                        <details className="flex flex-col rounded-sm border border-border-dark bg-surface-dark group" open>
-                            <summary className="flex cursor-pointer items-center justify-between px-3 py-2 bg-panel-dark select-none">
-                                <div className="flex items-center gap-2">
-                                    <span className="material-symbols-outlined text-primary text-[18px]">tune</span>
-                                    <p className="text-white text-xs font-medium">Preprocessing</p>
-                                </div>
-                                <span className="material-symbols-outlined text-text-secondary group-open:rotate-180 transition-transform text-[18px]">expand_more</span>
-                            </summary>
-                            {/* Canny Edge Tool Panel */}
-                            <div className="p-3 bg-surface-dark space-y-4 border-t border-border-dark">
-                                <div className="flex justify-between items-center">
-                                    <span className="text-xs text-primary font-medium">Active: Canny Edge</span>
-                                    <span className="material-symbols-outlined text-text-secondary text-[14px] cursor-pointer hover:text-white">settings</span>
-                                </div>
-                                {/* Sigma Slider */}
-                                <div className="space-y-1">
-                                    <div className="flex justify-between text-[10px] text-text-secondary uppercase">
-                                        <span>Sigma</span>
-                                        <span className="font-mono text-white">1.50</span>
-                                    </div>
-                                    <input className="h-1 bg-border-dark rounded-lg appearance-none cursor-pointer w-full" max="5" min="0" step="0.1" type="range" defaultValue="1.5" />
-                                </div>
-                                {/* Dual Threshold Inputs */}
-                                <div className="grid grid-cols-2 gap-2">
-                                    <div className="space-y-1">
-                                        <label className="text-[10px] text-text-secondary uppercase block">Low Thresh</label>
-                                        <div className="flex items-center bg-background-dark border border-border-dark rounded-sm px-2 py-1 focus-within:border-primary transition-colors">
-                                            <input className="bg-transparent border-none p-0 w-full text-xs font-mono text-white focus:ring-0 focus:outline-none" type="number" defaultValue="50" />
-                                        </div>
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-[10px] text-text-secondary uppercase block">High Thresh</label>
-                                        <div className="flex items-center bg-background-dark border border-border-dark rounded-sm px-2 py-1 focus-within:border-primary transition-colors">
-                                            <input className="bg-transparent border-none p-0 w-full text-xs font-mono text-white focus:ring-0 focus:outline-none" type="number" defaultValue="150" />
-                                        </div>
-                                    </div>
-                                </div>
-                                <button className="w-full bg-primary hover:bg-blue-600 text-white text-xs font-medium py-1.5 rounded-sm transition-colors mt-2">
-                                    Apply Filter
-                                </button>
+                        {pluginsLoading ? (
+                            <div className="flex items-center justify-center py-8">
+                                <span className="material-symbols-outlined text-text-secondary animate-spin">progress_activity</span>
                             </div>
-                        </details>
+                        ) : (
+                            Object.entries(categories).map(([category, plugins]) => {
+                                const isOpen = openCategory === category
+                                const icon = categoryIcons[category] || 'extension'
+                                const hasActivePlugin = activePlugin && plugins.some(p => p.name === activePlugin.name)
 
-                        {/* Accordion Item: Segmentation */}
-                        <details className="flex flex-col rounded-sm border border-border-dark bg-surface-dark group">
-                            <summary className="flex cursor-pointer items-center justify-between px-3 py-2 bg-surface-dark hover:bg-panel-dark transition-colors select-none">
-                                <div className="flex items-center gap-2">
-                                    <span className="material-symbols-outlined text-text-secondary text-[18px]">category</span>
-                                    <p className="text-text-secondary text-xs font-medium">Segmentation</p>
-                                </div>
-                                <span className="material-symbols-outlined text-text-secondary group-open:rotate-180 transition-transform text-[18px]">expand_more</span>
-                            </summary>
-                        </details>
+                                return (
+                                    <div key={category} className="flex flex-col rounded-sm border border-border-dark bg-surface-dark">
+                                        {/* Category Header */}
+                                        <button
+                                            onClick={() => handleCategoryToggle(category)}
+                                            className={`flex cursor-pointer items-center justify-between px-3 py-2 select-none transition-colors ${isOpen ? 'bg-panel-dark' : 'bg-surface-dark hover:bg-panel-dark'
+                                                }`}
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <span className={`material-symbols-outlined text-[18px] ${hasActivePlugin ? 'text-primary' : 'text-text-secondary'}`}>
+                                                    {icon}
+                                                </span>
+                                                <p className={`text-xs font-medium ${hasActivePlugin ? 'text-white' : 'text-text-secondary'}`}>
+                                                    {category}
+                                                </p>
+                                                <span className="text-[10px] text-text-secondary/50">({plugins.length})</span>
+                                            </div>
+                                            <span className={`material-symbols-outlined text-text-secondary transition-transform text-[18px] ${isOpen ? 'rotate-180' : ''}`}>
+                                                expand_more
+                                            </span>
+                                        </button>
 
-                        {/* Accordion Item: Morphology */}
-                        <details className="flex flex-col rounded-sm border border-border-dark bg-surface-dark group">
-                            <summary className="flex cursor-pointer items-center justify-between px-3 py-2 bg-surface-dark hover:bg-panel-dark transition-colors select-none">
-                                <div className="flex items-center gap-2">
-                                    <span className="material-symbols-outlined text-text-secondary text-[18px]">blur_on</span>
-                                    <p className="text-text-secondary text-xs font-medium">Morphology</p>
-                                </div>
-                                <span className="material-symbols-outlined text-text-secondary group-open:rotate-180 transition-transform text-[18px]">expand_more</span>
-                            </summary>
-                        </details>
+                                        {/* Plugin List & Controller */}
+                                        {isOpen && (
+                                            <div className="border-t border-border-dark">
+                                                {/* Plugin selector tabs */}
+                                                {plugins.length > 1 && (
+                                                    <div className="flex border-b border-border-dark">
+                                                        {plugins.map((plugin) => {
+                                                            const isActive = activePlugin?.name === plugin.name
+                                                            return (
+                                                                <button
+                                                                    key={plugin.name}
+                                                                    onClick={() => handlePluginSelect(plugin)}
+                                                                    className={`flex-1 px-2 py-1.5 text-[10px] font-medium transition-colors ${isActive
+                                                                        ? 'text-primary border-b-2 border-primary bg-primary/5'
+                                                                        : 'text-text-secondary hover:text-white hover:bg-panel-dark'
+                                                                        }`}
+                                                                    title={plugin.description}
+                                                                >
+                                                                    {plugin.display_name}
+                                                                </button>
+                                                            )
+                                                        })}
+                                                    </div>
+                                                )}
+
+                                                {/* Plugin Controller */}
+                                                {activePlugin && plugins.some(p => p.name === activePlugin.name) && (
+                                                    <PluginController spec={activePlugin} />
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                )
+                            })
+                        )}
                     </div>
                 </div>
 
@@ -129,31 +269,39 @@ export function AnalysisWorkspace() {
                 {/* Viewport Controls */}
                 <div className="h-12 border-b border-border-dark bg-surface-dark px-4 flex items-center justify-between shrink-0">
                     <div className="flex items-center gap-3">
-                        <span className="text-xs text-text-secondary font-mono">50% Zoom</span>
+                        <span className="text-xs text-text-secondary font-mono">100% Zoom</span>
                         <div className="h-4 w-px bg-border-dark"></div>
-                        <span className="text-xs text-text-secondary font-mono">1024x1024px</span>
+                        <span className="text-xs text-text-secondary font-mono">
+                            {activeImage ? `${activeImage.metadata.width}x${activeImage.metadata.height}px` : 'No image'}
+                        </span>
                     </div>
                 </div>
 
                 {/* Canvas Area */}
                 <div className="flex-1 relative overflow-hidden flex items-center justify-center bg-[#101012] bg-[radial-gradient(#27272a_1px,transparent_1px)] [background-size:16px_16px]">
-                    {/* The Scientific Image */}
+                    {/* Dynamic Image or Placeholder */}
                     <div className="relative shadow-2xl shadow-black/50 border border-border-dark">
-                        <div className="w-[500px] h-[500px] bg-gradient-to-br from-blue-900 via-cyan-800 to-green-900 flex items-center justify-center">
-                            <div className="text-center">
-                                <span className="material-symbols-outlined text-6xl text-white/30">image</span>
-                                <p className="text-white/50 text-sm mt-2">Drag image here or use File Explorer</p>
+                        {activeImage ? (
+                            /* Display the active image */
+                            <img
+                                src={activeImage.url}
+                                alt={activeImage.name}
+                                className="max-w-[80vw] max-h-[70vh] object-contain"
+                                style={{ imageRendering: 'auto' }}
+                            />
+                        ) : (
+                            /* Placeholder when no image */
+                            <div
+                                className="w-[500px] h-[500px] bg-gradient-to-br from-blue-900/20 via-cyan-800/20 to-green-900/20 flex items-center justify-center cursor-pointer hover:bg-white/5 transition-colors"
+                                onClick={handleImportClick}
+                            >
+                                <div className="text-center">
+                                    <span className="material-symbols-outlined text-6xl text-white/30">add_photo_alternate</span>
+                                    <p className="text-white/50 text-sm mt-2">Click to import an image</p>
+                                    <p className="text-white/30 text-xs mt-1">or drag & drop</p>
+                                </div>
                             </div>
-                            {/* Overlay for ROI visualization */}
-                            <div className="absolute top-1/4 left-1/4 w-32 h-32 border border-primary/80 bg-primary/10 backdrop-blur-[1px]">
-                                <div className="absolute -top-4 left-0 bg-primary text-white text-[10px] px-1 font-mono">ROI 1</div>
-                                {/* Resize handles */}
-                                <div className="absolute -top-1 -left-1 w-2 h-2 bg-white border border-primary"></div>
-                                <div className="absolute -top-1 -right-1 w-2 h-2 bg-white border border-primary"></div>
-                                <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-white border border-primary"></div>
-                                <div className="absolute -bottom-1 -right-1 w-2 h-2 bg-white border border-primary"></div>
-                            </div>
-                        </div>
+                        )}
                     </div>
 
                     {/* Floating HUD */}
@@ -225,26 +373,42 @@ export function AnalysisWorkspace() {
                     </div>
                     <div className="p-4">
                         <div className="grid grid-cols-2 gap-px bg-border-dark border border-border-dark rounded-sm overflow-hidden">
-                            <StatItem label="Mean Intensity" value="124.52" />
-                            <StatItem label="Std Dev" value="42.10" />
-                            <StatItem label="Entropy" value="4.21" />
-                            <StatItem label="Kurtosis" value="0.85" />
-                            <StatItem label="Skewness" value="-0.12" />
-                            <StatItem label="Max Value" value="255" />
+                            <StatItem label="Mean Intensity" value={activeImage ? "124.52" : "--"} />
+                            <StatItem label="Std Dev" value={activeImage ? "42.10" : "--"} />
+                            <StatItem label="Entropy" value={activeImage ? "4.21" : "--"} />
+                            <StatItem label="Kurtosis" value={activeImage ? "0.85" : "--"} />
+                            <StatItem label="Skewness" value={activeImage ? "-0.12" : "--"} />
+                            <StatItem label="Max Value" value={activeImage ? "255" : "--"} />
                         </div>
 
-                        {/* Additional Details */}
+                        {/* Additional Details - Dynamic from metadata */}
                         <div className="mt-6 space-y-3">
-                            <DetailRow label="Color Space" value="RGB (sRGB)" />
-                            <DetailRow label="Bit Depth" value="16-bit Unsigned" />
-                            <DetailRow label="Dimensions" value="1024 x 1024" />
+                            <DetailRow
+                                label="Color Space"
+                                value={activeImage ? (activeImage.metadata.channels === 1 ? "Grayscale" : "RGB (sRGB)") : "--"}
+                            />
+                            <DetailRow
+                                label="Bit Depth"
+                                value={activeImage?.metadata.bitDepth || "--"}
+                            />
+                            <DetailRow
+                                label="Dimensions"
+                                value={activeImage ? `${activeImage.metadata.width} x ${activeImage.metadata.height}` : "--"}
+                            />
+                            <DetailRow
+                                label="File Size"
+                                value={activeImage ? formatFileSize(activeImage.metadata.fileSize) : "--"}
+                            />
                         </div>
                     </div>
                 </div>
 
                 {/* Bottom Inspector Action */}
                 <div className="p-4 border-t border-border-dark bg-panel-dark">
-                    <button className="w-full bg-surface-dark hover:bg-border-dark border border-border-dark text-text-secondary hover:text-white text-xs font-medium py-2 rounded-sm transition-colors flex items-center justify-center gap-2">
+                    <button
+                        className="w-full bg-surface-dark hover:bg-border-dark border border-border-dark text-text-secondary hover:text-white text-xs font-medium py-2 rounded-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={!activeImage}
+                    >
                         <span className="material-symbols-outlined text-[16px]">download</span>
                         Export Statistics CSV
                     </button>
@@ -270,4 +434,10 @@ function DetailRow({ label, value }: { label: string; value: string }) {
             <span className="text-xs text-white font-medium">{value}</span>
         </div>
     )
+}
+
+function formatFileSize(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`
 }

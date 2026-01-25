@@ -2,13 +2,30 @@
 NeuroPixel Backend - FastAPI Application
 Scientific Image Analysis Workstation
 """
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+from app.api.images import router as images_router
+from app.api.plugins import router as plugins_router
+from app.plugins.manager import initialize_plugins
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan management."""
+    # Startup: Load plugins
+    initialize_plugins()
+    yield
+    # Shutdown: cleanup if needed
+    pass
+
 
 app = FastAPI(
     title="NeuroPixel",
     description="Scientific Image Analysis Workstation API",
-    version="0.1.0"
+    version="0.1.0",
+    lifespan=lifespan,
 )
 
 # CORS configuration for development
@@ -19,6 +36,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include routers
+app.include_router(images_router)
+app.include_router(plugins_router)
 
 
 @app.get("/health")
