@@ -3,8 +3,8 @@
  * Phase 4: Synchronized Comparison Engine with Swipe & Difference modes
  */
 
-import { useState, useRef } from 'react'
-import { useAppStore, CompareMode } from '@/store/appStore'
+import { useState, useRef, useEffect } from 'react'
+import { useAppStore } from '@/store/appStore'
 import { useImageUpload } from '@/hooks/useImageUpload'
 import { ComparisonEngine as ComparisonViewer } from '@/components/ComparisonEngine'
 
@@ -13,6 +13,8 @@ export function ComparisonEngine() {
     const { uploadImage } = useImageUpload()
     const fileInputRef = useRef<HTMLInputElement>(null)
     const [targetSource, setTargetSource] = useState<'A' | 'B' | null>(null)
+    const [metrics, setMetrics] = useState<{ ssim: number; psnr: number; mse: number } | null>(null)
+    const [loadingMetrics, setLoadingMetrics] = useState(false)
 
     // Get current comparison images for metrics
     const imageA = images.find((img) => img.id === compareSourceA)
@@ -42,6 +44,30 @@ export function ComparisonEngine() {
         }
         setTargetSource(null)
     }
+
+    useEffect(() => {
+        if (!compareSourceA || !compareSourceB) {
+            setMetrics(null)
+            return
+        }
+
+        const fetchMetrics = async () => {
+            setLoadingMetrics(true)
+            try {
+                const res = await fetch(`http://localhost:8000/images/compare/${compareSourceA}/${compareSourceB}`)
+                if (res.ok) {
+                    const data = await res.json()
+                    setMetrics(data)
+                }
+            } catch (error) {
+                console.error("Failed to fetch metrics:", error)
+            } finally {
+                setLoadingMetrics(false)
+            }
+        }
+
+        fetchMetrics()
+    }, [compareSourceA, compareSourceB])
 
     return (
         <>
@@ -141,18 +167,40 @@ export function ComparisonEngine() {
                         </div>
                     </div>
 
-                    {/* Metrics (placeholder until backend implementation) */}
                     {imageA && imageB && (
                         <div className="space-y-3 pt-3 border-t border-border-dark">
                             <h3 className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">Metrics</h3>
 
-                            <MetricCard label="Structural Similarity (SSIM)" value="--" progress={0} color="slate" />
-                            <MetricCard label="Peak Signal-to-Noise (PSNR)" value="--" progress={0} color="slate" />
-                            <MetricCard label="Mean Squared Error (MSE)" value="--" progress={0} color="slate" />
-
-                            <p className="text-[10px] text-text-secondary/50 text-center pt-2">
-                                Metrics calculated server-side (coming soon)
-                            </p>
+                            {loadingMetrics ? (
+                                <div className="p-4 text-center text-xs text-text-secondary animate-pulse">
+                                    Calculating metrics...
+                                </div>
+                            ) : metrics ? (
+                                <>
+                                    <MetricCard
+                                        label="Structural Similarity (SSIM)"
+                                        value={metrics.ssim.toFixed(4)}
+                                        progress={metrics.ssim * 100}
+                                        color={metrics.ssim > 0.9 ? "emerald" : metrics.ssim > 0.7 ? "amber" : "slate"}
+                                    />
+                                    <MetricCard
+                                        label="Peak Signal-to-Noise (PSNR)"
+                                        value={`${metrics.psnr.toFixed(2)} dB`}
+                                        progress={Math.min((metrics.psnr / 60) * 100, 100)} // Approx scale for PSNR
+                                        color={metrics.psnr > 40 ? "emerald" : metrics.psnr > 30 ? "amber" : "slate"}
+                                    />
+                                    <MetricCard
+                                        label="Mean Squared Error (MSE)"
+                                        value={metrics.mse.toFixed(2)}
+                                        progress={0} // MSE is unbounded, difficult to show progress
+                                        color="slate"
+                                    />
+                                </>
+                            ) : (
+                                <div className="text-center text-xs text-text-secondary">
+                                    Unable to calculate metrics
+                                </div>
+                            )}
                         </div>
                     )}
 

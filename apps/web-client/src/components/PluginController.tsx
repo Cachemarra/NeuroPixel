@@ -155,7 +155,7 @@ function ParameterControl({ param, value, valueLow, valueHigh, onChange }: Param
 }
 
 // =============================================================================
-// Slider Control (Float/Int)
+// Slider Control (Float/Int) - Progress bar style
 // =============================================================================
 
 interface SliderControlProps {
@@ -167,33 +167,50 @@ interface SliderControlProps {
 function SliderControl({ param, value, onChange }: SliderControlProps) {
     const displayValue = param.type === 'float' ? value.toFixed(2) : value.toString()
 
+    // Calculate progress percentage for blue fill
+    const progress = ((value - param.min) / (param.max - param.min)) * 100
+
     return (
         <div className="space-y-1">
             <div className="flex justify-between text-[10px] text-text-secondary uppercase">
                 <span>{param.label}</span>
                 <span className="font-mono text-white">{displayValue}</span>
             </div>
-            <input
-                type="range"
-                min={param.min}
-                max={param.max}
-                step={param.step}
-                value={value}
-                onChange={(e) => {
-                    const newValue = param.type === 'int'
-                        ? parseInt(e.target.value, 10)
-                        : parseFloat(e.target.value)
-                    onChange(param.name, newValue)
-                }}
-                className="h-1 bg-border-dark rounded-lg appearance-none cursor-pointer w-full"
-                title={param.description}
-            />
+            {/* Wrapper with progress fill background */}
+            <div className="relative h-4 flex items-center">
+                <div
+                    className="absolute left-0 top-1/2 -translate-y-1/2 h-1 rounded-full bg-primary"
+                    style={{ width: `${progress}%` }}
+                />
+                <div
+                    className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-1 rounded-full bg-border-dark"
+                    style={{
+                        marginLeft: `${progress}%`,
+                        width: `${100 - progress}%`
+                    }}
+                />
+                <input
+                    type="range"
+                    min={param.min}
+                    max={param.max}
+                    step={param.step}
+                    value={value}
+                    onChange={(e) => {
+                        const newValue = param.type === 'int'
+                            ? parseInt(e.target.value, 10)
+                            : parseFloat(e.target.value)
+                        onChange(param.name, newValue)
+                    }}
+                    className="relative w-full z-10 appearance-none bg-transparent cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-background-dark [&::-webkit-slider-thumb]:shadow-[0_0_6px_rgba(60,131,246,0.5)] [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-runnable-track]:bg-transparent [&::-webkit-slider-runnable-track]:h-1"
+                    title={param.description}
+                />
+            </div>
         </div>
     )
 }
 
 // =============================================================================
-// Range Control (Dual Slider)
+// Range Control (Dual Slider) - Blue fill between thumbs
 // =============================================================================
 
 interface RangeControlProps {
@@ -204,40 +221,67 @@ interface RangeControlProps {
 }
 
 function RangeControl({ param, valueLow, valueHigh, onChange }: RangeControlProps) {
+    // Calculate positions for the fill between thumbs
+    const lowPercent = ((valueLow - param.min) / (param.max - param.min)) * 100
+    const highPercent = ((valueHigh - param.min) / (param.max - param.min)) * 100
+
     return (
         <div className="space-y-2">
-            <div className="text-[10px] text-text-secondary uppercase">{param.label}</div>
-            <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                    <div className="flex justify-between text-[10px] text-text-secondary">
-                        <span>Low</span>
-                        <span className="font-mono text-white">{valueLow.toFixed(2)}</span>
-                    </div>
-                    <input
-                        type="range"
-                        min={param.min}
-                        max={param.max}
-                        step={param.step}
-                        value={valueLow}
-                        onChange={(e) => onChange(`${param.name}_low`, parseFloat(e.target.value))}
-                        className="h-1 bg-border-dark rounded-lg appearance-none cursor-pointer w-full"
-                    />
-                </div>
-                <div className="space-y-1">
-                    <div className="flex justify-between text-[10px] text-text-secondary">
-                        <span>High</span>
-                        <span className="font-mono text-white">{valueHigh.toFixed(2)}</span>
-                    </div>
-                    <input
-                        type="range"
-                        min={param.min}
-                        max={param.max}
-                        step={param.step}
-                        value={valueHigh}
-                        onChange={(e) => onChange(`${param.name}_high`, parseFloat(e.target.value))}
-                        className="h-1 bg-border-dark rounded-lg appearance-none cursor-pointer w-full"
-                    />
-                </div>
+            <div className="flex justify-between text-[10px] text-text-secondary uppercase">
+                <span>{param.label}</span>
+                <span className="font-mono text-white">
+                    {valueLow.toFixed(1)} - {valueHigh.toFixed(1)}
+                </span>
+            </div>
+            {/* Dual slider track */}
+            <div className="relative h-5 flex items-center">
+                {/* Background track */}
+                <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-1 rounded-full bg-border-dark" />
+                {/* Blue fill between thumbs */}
+                <div
+                    className="absolute top-1/2 -translate-y-1/2 h-1 bg-primary rounded-full"
+                    style={{
+                        left: `${lowPercent}%`,
+                        width: `${highPercent - lowPercent}%`
+                    }}
+                />
+                {/* Low slider */}
+                <input
+                    type="range"
+                    min={param.min}
+                    max={param.max}
+                    step={param.step}
+                    value={valueLow}
+                    onChange={(e) => {
+                        const newVal = parseFloat(e.target.value)
+                        if (newVal <= valueHigh) {
+                            onChange(`${param.name}_low`, newVal)
+                        }
+                    }}
+                    className="absolute left-0 right-0 w-full z-10 appearance-none bg-transparent cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-background-dark [&::-webkit-slider-thumb]:shadow-[0_0_4px_rgba(60,131,246,0.5)] [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-runnable-track]:bg-transparent [&::-webkit-slider-runnable-track]:h-1"
+                    title="Low threshold"
+                />
+                {/* High slider */}
+                <input
+                    type="range"
+                    min={param.min}
+                    max={param.max}
+                    step={param.step}
+                    value={valueHigh}
+                    onChange={(e) => {
+                        const newVal = parseFloat(e.target.value)
+                        if (newVal >= valueLow) {
+                            onChange(`${param.name}_high`, newVal)
+                        }
+                    }}
+                    className="absolute left-0 right-0 w-full z-20 appearance-none bg-transparent cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-background-dark [&::-webkit-slider-thumb]:shadow-[0_0_4px_rgba(60,131,246,0.5)] [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-runnable-track]:bg-transparent [&::-webkit-slider-runnable-track]:h-1"
+                    title="High threshold"
+                />
+            </div>
+            {/* Min/Max labels */}
+            <div className="flex justify-between text-[9px] text-text-secondary font-mono">
+                <span>{param.min}</span>
+                <span>{param.max}</span>
             </div>
         </div>
     )

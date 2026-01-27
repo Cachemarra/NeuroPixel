@@ -14,7 +14,7 @@ const API_BASE = 'http://localhost:8000'
 
 export function AnalysisWorkspace() {
     const fileInputRef = useRef<HTMLInputElement>(null)
-    const { images, activeImageId, setActiveImage, addImage, isUploading } = useAppStore()
+    const { images, activeImageId, setActiveImage, addImage, isUploading, viewportState, setViewportState, resetViewport } = useAppStore()
     const { uploadImage } = useImageUpload()
     const { categories, isLoading: pluginsLoading } = usePluginsByCategory()
 
@@ -63,6 +63,50 @@ export function AnalysisWorkspace() {
     // Track which plugin is currently selected
     const [activePlugin, setActivePlugin] = useState<PluginSpec | null>(null)
     const [openCategory, setOpenCategory] = useState<string | null>(null)
+
+    // Histogram and statistics state
+    const [histogramData, setHistogramData] = useState<Record<string, number[]> | null>(null)
+    const [statisticsData, setStatisticsData] = useState<{
+        mean: number
+        std: number
+        min: number
+        max: number
+        entropy: number
+        skewness: number
+        kurtosis: number
+    } | null>(null)
+    const [visibleChannels, setVisibleChannels] = useState<Set<string>>(new Set(['red', 'green', 'blue', 'gray']))
+
+    // Fetch histogram and statistics when activeImageId changes
+    useEffect(() => {
+        if (!activeImageId) {
+            setHistogramData(null)
+            setStatisticsData(null)
+            return
+        }
+
+        const fetchData = async () => {
+            try {
+                // Fetch histogram
+                const histResponse = await fetch(`${API_BASE}/images/${activeImageId}/histogram?bins=64`)
+                if (histResponse.ok) {
+                    const histData = await histResponse.json()
+                    setHistogramData(histData.channels)
+                }
+
+                // Fetch statistics
+                const statsResponse = await fetch(`${API_BASE}/images/${activeImageId}/statistics`)
+                if (statsResponse.ok) {
+                    const statsData = await statsResponse.json()
+                    setStatisticsData(statsData)
+                }
+            } catch (err) {
+                console.error('Failed to fetch image data:', err)
+            }
+        }
+
+        fetchData()
+    }, [activeImageId])
 
     // Get active image data
     const activeImage = images.find(img => img.id === activeImageId)
@@ -338,17 +382,32 @@ export function AnalysisWorkspace() {
 
                     {/* Floating HUD */}
                     <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-surface-dark/90 backdrop-blur-md border border-border-dark rounded-md shadow-lg p-1 flex gap-2">
-                        <button className="p-2 hover:bg-panel-dark text-text-secondary hover:text-white rounded-sm transition-colors" title="Pan">
+                        <button
+                            className="p-2 hover:bg-panel-dark text-text-secondary hover:text-white rounded-sm transition-colors"
+                            title="Pan (drag image)"
+                        >
                             <span className="material-symbols-outlined text-[20px]">pan_tool</span>
                         </button>
                         <div className="w-px bg-border-dark my-1"></div>
-                        <button className="p-2 hover:bg-panel-dark text-text-secondary hover:text-white rounded-sm transition-colors" title="Zoom In">
+                        <button
+                            onClick={() => setViewportState({ zoom: Math.min(viewportState.zoom * 1.25, 10) })}
+                            className="p-2 hover:bg-panel-dark text-text-secondary hover:text-white rounded-sm transition-colors"
+                            title="Zoom In"
+                        >
                             <span className="material-symbols-outlined text-[20px]">add</span>
                         </button>
-                        <button className="p-2 hover:bg-panel-dark text-text-secondary hover:text-white rounded-sm transition-colors" title="Zoom Out">
+                        <button
+                            onClick={() => setViewportState({ zoom: Math.max(viewportState.zoom / 1.25, 0.1) })}
+                            className="p-2 hover:bg-panel-dark text-text-secondary hover:text-white rounded-sm transition-colors"
+                            title="Zoom Out"
+                        >
                             <span className="material-symbols-outlined text-[20px]">remove</span>
                         </button>
-                        <button className="p-2 hover:bg-panel-dark text-text-secondary hover:text-white rounded-sm transition-colors" title="Fit to Screen">
+                        <button
+                            onClick={() => resetViewport()}
+                            className="p-2 hover:bg-panel-dark text-text-secondary hover:text-white rounded-sm transition-colors"
+                            title="Fit to Screen"
+                        >
                             <span className="material-symbols-outlined text-[20px]">fit_screen</span>
                         </button>
                         <div className="w-px bg-border-dark my-1"></div>
@@ -364,31 +423,76 @@ export function AnalysisWorkspace() {
                 {/* Histogram Section */}
                 <div className="flex flex-col h-1/3 min-h-[250px] border-b border-border-dark">
                     <div className="px-4 py-2 border-b border-border-dark bg-panel-dark flex justify-between items-center">
-                        <h3 className="text-xs font-semibold uppercase tracking-wider text-text-secondary">Histogram (RGB)</h3>
-                        <span className="material-symbols-outlined text-text-secondary text-[16px] cursor-pointer">more_horiz</span>
-                    </div>
-                    <div className="p-4 flex-1 flex items-end justify-between gap-1 relative bg-surface-dark overflow-hidden">
-                        {/* Histogram visualization */}
-                        <div className="absolute inset-x-4 bottom-4 top-4 flex items-end gap-[2px] opacity-80">
-                            {/* Red Channel */}
-                            <div className="w-1/3 h-full flex items-end gap-[1px]">
-                                {[20, 40, 80, 60, 30, 45, 90, 55, 25].map((h, i) => (
-                                    <div key={i} className="w-1 bg-red-500/50 rounded-t-sm" style={{ height: `${h}%` }}></div>
-                                ))}
-                            </div>
-                            {/* Green Channel */}
-                            <div className="w-1/3 h-full flex items-end gap-[1px]">
-                                {[30, 50, 95, 70, 40, 60, 85, 45, 20].map((h, i) => (
-                                    <div key={i} className="w-1 bg-green-500/50 rounded-t-sm" style={{ height: `${h}%` }}></div>
-                                ))}
-                            </div>
-                            {/* Blue Channel */}
-                            <div className="w-1/3 h-full flex items-end gap-[1px]">
-                                {[10, 20, 40, 30, 15, 25, 35, 20, 10].map((h, i) => (
-                                    <div key={i} className="w-1 bg-blue-500/50 rounded-t-sm" style={{ height: `${h}%` }}></div>
-                                ))}
-                            </div>
+                        <h3 className="text-xs font-semibold uppercase tracking-wider text-text-secondary">Histogram</h3>
+                        {/* Channel toggle buttons */}
+                        <div className="flex gap-1">
+                            {histogramData && Object.keys(histogramData).map(channel => {
+                                const colors: Record<string, string> = {
+                                    red: 'bg-red-500',
+                                    green: 'bg-green-500',
+                                    blue: 'bg-blue-500',
+                                    gray: 'bg-zinc-400'
+                                }
+                                const isVisible = visibleChannels.has(channel)
+                                return (
+                                    <button
+                                        key={channel}
+                                        onClick={() => {
+                                            const newChannels = new Set(visibleChannels)
+                                            if (isVisible) {
+                                                newChannels.delete(channel)
+                                            } else {
+                                                newChannels.add(channel)
+                                            }
+                                            setVisibleChannels(newChannels)
+                                        }}
+                                        className={`w-4 h-4 rounded-sm border border-border-dark ${isVisible ? colors[channel] : 'bg-panel-dark'}`}
+                                        title={`Toggle ${channel} channel`}
+                                    />
+                                )
+                            })}
                         </div>
+                    </div>
+                    <div className="p-4 flex-1 relative bg-surface-dark overflow-hidden">
+                        {/* Histogram visualization */}
+                        {histogramData ? (
+                            <div className="absolute inset-x-4 bottom-6 top-2 flex items-end">
+                                {(() => {
+                                    // Get max value across all visible channels for normalization
+                                    const allValues = Object.entries(histogramData)
+                                        .filter(([ch]) => visibleChannels.has(ch))
+                                        .flatMap(([, vals]) => vals)
+                                    const maxVal = Math.max(...allValues, 1)
+
+                                    // Render all visible channels overlaid
+                                    return Object.entries(histogramData)
+                                        .filter(([ch]) => visibleChannels.has(ch))
+                                        .map(([channel, values]) => {
+                                            const colors: Record<string, string> = {
+                                                red: 'bg-red-500/60',
+                                                green: 'bg-green-500/60',
+                                                blue: 'bg-blue-500/60',
+                                                gray: 'bg-zinc-400/60'
+                                            }
+                                            return (
+                                                <div key={channel} className="absolute inset-0 flex items-end gap-px">
+                                                    {values.map((val, i) => (
+                                                        <div
+                                                            key={i}
+                                                            className={`flex-1 ${colors[channel]} rounded-t-sm`}
+                                                            style={{ height: `${(val / maxVal) * 100}%` }}
+                                                        />
+                                                    ))}
+                                                </div>
+                                            )
+                                        })
+                                })()}
+                            </div>
+                        ) : (
+                            <div className="h-full flex items-center justify-center text-text-secondary text-sm">
+                                {activeImage ? 'Loading...' : 'No image selected'}
+                            </div>
+                        )}
                         {/* Axis Labels */}
                         <div className="absolute bottom-0 left-4 right-4 flex justify-between text-[9px] text-text-secondary font-mono">
                             <span>0</span>
@@ -405,12 +509,12 @@ export function AnalysisWorkspace() {
                     </div>
                     <div className="p-4">
                         <div className="grid grid-cols-2 gap-px bg-border-dark border border-border-dark rounded-sm overflow-hidden">
-                            <StatItem label="Mean Intensity" value={activeImage ? "124.52" : "--"} />
-                            <StatItem label="Std Dev" value={activeImage ? "42.10" : "--"} />
-                            <StatItem label="Entropy" value={activeImage ? "4.21" : "--"} />
-                            <StatItem label="Kurtosis" value={activeImage ? "0.85" : "--"} />
-                            <StatItem label="Skewness" value={activeImage ? "-0.12" : "--"} />
-                            <StatItem label="Max Value" value={activeImage ? "255" : "--"} />
+                            <StatItem label="Mean Intensity" value={statisticsData ? statisticsData.mean.toString() : "--"} />
+                            <StatItem label="Std Dev" value={statisticsData ? statisticsData.std.toString() : "--"} />
+                            <StatItem label="Entropy" value={statisticsData ? statisticsData.entropy.toString() : "--"} />
+                            <StatItem label="Kurtosis" value={statisticsData ? statisticsData.kurtosis.toString() : "--"} />
+                            <StatItem label="Skewness" value={statisticsData ? statisticsData.skewness.toString() : "--"} />
+                            <StatItem label="Max Value" value={statisticsData ? statisticsData.max.toString() : "--"} />
                         </div>
 
                         {/* Additional Details - Dynamic from metadata */}

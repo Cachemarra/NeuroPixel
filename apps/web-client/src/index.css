@@ -21,9 +21,10 @@
   background: #52525b;
 }
 
-/* Range Slider Styling - Enhanced for visibility */
+/* Range Slider Styling - Progress bar style */
 input[type='range'] {
   -webkit-appearance: none;
+  appearance: none;
   width: 100%;
   background: transparent;
   accent-color: #3c83f6;
@@ -31,29 +32,30 @@ input[type='range'] {
 
 input[type='range']::-webkit-slider-thumb {
   -webkit-appearance: none;
-  height: 16px;
-  width: 16px;
+  height: 14px;
+  width: 14px;
   border-radius: 50%;
   background: #3c83f6;
   cursor: pointer;
-  margin-top: -6px;
+  margin-top: -5px;
   border: 2px solid #18181b;
   box-shadow: 0 0 6px rgba(60, 131, 246, 0.5);
-  transition: all 0.15s ease;
+  transition: box-shadow 0.15s ease;
+  position: relative;
+  z-index: 2;
 }
 
 input[type='range']::-webkit-slider-thumb:hover {
   background: #5b9cf7;
   box-shadow: 0 0 10px rgba(60, 131, 246, 0.7);
-  transform: scale(1.1);
 }
 
 input[type='range']::-webkit-slider-runnable-track {
   width: 100%;
-  height: 6px;
+  height: 4px;
   cursor: pointer;
-  background: linear-gradient(to right, #3c83f6 0%, #3c83f6 var(--slider-progress, 50%), #3f3f46 var(--slider-progress, 50%), #3f3f46 100%);
-  border-radius: 3px;
+  background: #3f3f46;
+  border-radius: 2px;
 }
 
 input[type='range']:focus {
@@ -66,8 +68,8 @@ input[type='range']:focus::-webkit-slider-thumb {
 
 /* Firefox support */
 input[type='range']::-moz-range-thumb {
-  height: 16px;
-  width: 16px;
+  height: 14px;
+  width: 14px;
   border-radius: 50%;
   background: #3c83f6;
   cursor: pointer;
@@ -77,16 +79,16 @@ input[type='range']::-moz-range-thumb {
 
 input[type='range']::-moz-range-track {
   width: 100%;
-  height: 6px;
+  height: 4px;
   cursor: pointer;
   background: #3f3f46;
-  border-radius: 3px;
+  border-radius: 2px;
 }
 
 input[type='range']::-moz-range-progress {
   background: #3c83f6;
-  height: 6px;
-  border-radius: 3px;
+  height: 4px;
+  border-radius: 2px;
 }
 
 /* Custom grid pattern for the canvas */

@@ -177,8 +177,66 @@ export function PipelineEditorPage() {
 
             {/* Main Content */}
             <div className="flex-1 flex overflow-hidden">
-                {/* Left Panel: Pipeline Steps */}
-                <div className="w-[400px] border-r border-border-dark bg-surface-dark overflow-y-auto p-4 space-y-3">
+                {/* Left Panel: Configuration (Input Folder + Summary) */}
+                <div className="w-[320px] border-r border-border-dark bg-surface-dark overflow-y-auto p-4 space-y-6">
+                    {/* Input Folder */}
+                    <div className="space-y-2">
+                        <label className="text-xs text-text-secondary uppercase font-bold">Input Folder</label>
+                        <div className="flex gap-2">
+                            <input
+                                type="text"
+                                value={inputFolder}
+                                onChange={(e) => setInputFolder(e.target.value)}
+                                placeholder="/path/to/images"
+                                className="flex-1 bg-background-dark border border-border-dark rounded px-3 py-2 text-sm text-white font-mono"
+                            />
+                            <button
+                                onClick={() => {
+                                    // Create folder input dialog
+                                    const input = document.createElement('input')
+                                    input.type = 'file'
+                                    input.webkitdirectory = true
+                                    input.onchange = () => {
+                                        const files = input.files
+                                        if (files && files.length > 0) {
+                                            // Get the folder path from the first file
+                                            const path = files[0].webkitRelativePath.split('/')[0]
+                                            setInputFolder(path || 'Selected folder')
+                                        }
+                                    }
+                                    input.click()
+                                }}
+                                className="px-3 py-2 bg-panel-dark border border-border-dark rounded text-text-secondary hover:text-white transition-colors"
+                                title="Browse for folder"
+                            >
+                                <span className="material-symbols-outlined text-[20px]">folder_open</span>
+                            </button>
+                        </div>
+                        <p className="text-[10px] text-text-secondary">Source folder for batch processing</p>
+                    </div>
+
+                    {/* Summary */}
+                    <div className="bg-panel-dark border border-border-dark rounded-lg p-4 space-y-3">
+                        <h3 className="text-sm font-semibold text-white">Pipeline Summary</h3>
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <p className="text-text-secondary">Steps</p>
+                                <p className="text-white font-mono">{pipelineSteps.length}</p>
+                            </div>
+                            <div>
+                                <p className="text-text-secondary">Active</p>
+                                <p className="text-white font-mono">{pipelineSteps.filter(s => s.active).length}</p>
+                            </div>
+                            <div>
+                                <p className="text-text-secondary">Images in Explorer</p>
+                                <p className="text-white font-mono">{images.length}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Right Panel: Pipeline Steps */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-3">
                     {pipelineSteps.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-full text-center">
                             <span className="material-symbols-outlined text-6xl text-text-secondary/30">layers</span>
@@ -194,8 +252,8 @@ export function PipelineEditorPage() {
                                 <div
                                     key={step.id}
                                     className={`rounded-lg border transition-all ${step.active
-                                            ? 'bg-panel-dark border-border-dark'
-                                            : 'bg-panel-dark/50 border-border-dark/50 opacity-60'
+                                        ? 'bg-panel-dark border-border-dark'
+                                        : 'bg-panel-dark/50 border-border-dark/50 opacity-60'
                                         } ${isExpanded ? 'ring-1 ring-primary/30' : ''}`}
                                 >
                                     {/* Step Header */}
@@ -274,48 +332,6 @@ export function PipelineEditorPage() {
                             )
                         })
                     )}
-                </div>
-
-                {/* Right Panel: Configuration */}
-                <div className="flex-1 flex flex-col p-6 overflow-y-auto">
-                    <div className="max-w-xl space-y-6">
-                        {/* Input Folder */}
-                        <div className="space-y-2">
-                            <label className="text-xs text-text-secondary uppercase font-bold">Input Folder</label>
-                            <div className="flex gap-2">
-                                <input
-                                    type="text"
-                                    value={inputFolder}
-                                    onChange={(e) => setInputFolder(e.target.value)}
-                                    placeholder="/path/to/images"
-                                    className="flex-1 bg-surface-dark border border-border-dark rounded px-3 py-2 text-sm text-white font-mono"
-                                />
-                                <button className="px-3 py-2 bg-panel-dark border border-border-dark rounded text-text-secondary hover:text-white transition-colors">
-                                    <span className="material-symbols-outlined text-[20px]">folder_open</span>
-                                </button>
-                            </div>
-                            <p className="text-[10px] text-text-secondary">Source folder for batch processing</p>
-                        </div>
-
-                        {/* Summary */}
-                        <div className="bg-panel-dark border border-border-dark rounded-lg p-4 space-y-3">
-                            <h3 className="text-sm font-semibold text-white">Pipeline Summary</h3>
-                            <div className="grid grid-cols-2 gap-4 text-sm">
-                                <div>
-                                    <p className="text-text-secondary">Steps</p>
-                                    <p className="text-white font-mono">{pipelineSteps.length}</p>
-                                </div>
-                                <div>
-                                    <p className="text-text-secondary">Active</p>
-                                    <p className="text-white font-mono">{pipelineSteps.filter(s => s.active).length}</p>
-                                </div>
-                                <div>
-                                    <p className="text-text-secondary">Images in Explorer</p>
-                                    <p className="text-white font-mono">{images.length}</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
 

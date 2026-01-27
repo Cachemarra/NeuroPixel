@@ -133,7 +133,17 @@ export function ComparisonEngine() {
                         </select>
                     </div>
 
-                    <span className="text-text-secondary">vs</span>
+                    <button
+                        onClick={() => {
+                            const temp = compareSourceA;
+                            setCompareSourceA(compareSourceB);
+                            setCompareSourceB(temp);
+                        }}
+                        className="p-1 hover:bg-panel-dark text-text-secondary hover:text-white rounded transition-colors"
+                        title="Swap Images"
+                    >
+                        <span className="material-symbols-outlined text-[16px]">swap_horiz</span>
+                    </button>
 
                     {/* Source B Selector */}
                     <div className="flex items-center gap-2">
