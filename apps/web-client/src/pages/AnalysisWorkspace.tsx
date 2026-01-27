@@ -25,24 +25,30 @@ export function AnalysisWorkspace() {
                 const response = await fetch(`${API_BASE}/images`)
                 if (!response.ok) return
                 const data = await response.json()
-                // Update store if different (simple check)
-                // For now, we'll just upsert to ensure we have everything
+
+                // Get current image IDs to avoid duplicates
+                const currentState = useAppStore.getState()
+                const existingIds = new Set(currentState.images.map(img => img.id))
+
+                // Only add images that don't already exist
                 data.forEach((img: any) => {
-                    addImage({
-                        id: img.id,
-                        name: img.name,
-                        url: img.url,
-                        thumbnailUrl: img.thumbnail_url,
-                        sourceId: img.source_id,
-                        isResult: !!img.source_id,
-                        metadata: {
-                            width: img.metadata.width,
-                            height: img.metadata.height,
-                            channels: img.metadata.channels,
-                            bitDepth: img.metadata.bit_depth,
-                            fileSize: img.metadata.file_size,
-                        }
-                    })
+                    if (!existingIds.has(img.id)) {
+                        addImage({
+                            id: img.id,
+                            name: img.name,
+                            url: img.url,
+                            thumbnailUrl: img.thumbnail_url,
+                            sourceId: img.source_id,
+                            isResult: !!img.source_id,
+                            metadata: {
+                                width: img.metadata.width,
+                                height: img.metadata.height,
+                                channels: img.metadata.channels,
+                                bitDepth: img.metadata.bit_depth,
+                                fileSize: img.metadata.file_size,
+                            }
+                        })
+                    }
                 })
             } catch (error) {
                 // Silent error on polling

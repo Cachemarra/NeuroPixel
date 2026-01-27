@@ -1,6 +1,16 @@
-import { ReactNode } from 'react'
+import { ReactNode, useState, useEffect } from 'react'
 import { useBackendHealth } from '@/hooks/useBackendHealth'
 import { useAppStore, ViewMode } from '@/store/appStore'
+import { AppMenuBar } from '@/components/AppMenuBar'
+
+const API_BASE = 'http://localhost:8000'
+
+interface ComputeDevice {
+    id: string
+    name: string
+    type: 'cpu' | 'gpu'
+    is_active: boolean
+}
 
 interface LayoutProps {
     children: ReactNode
@@ -8,7 +18,7 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
     const { isConnected, gpuActive } = useBackendHealth()
-    const { activeView, setActiveView, openPipelineEditor } = useAppStore()
+    const { activeView, setActiveView } = useAppStore()
 
     return (
         <div className="flex flex-col h-screen overflow-hidden">
@@ -18,7 +28,6 @@ export function Layout({ children }: LayoutProps) {
                 gpuActive={gpuActive}
                 activeView={activeView}
                 setActiveView={setActiveView}
-                onOpenPipeline={openPipelineEditor}
             />
 
             {/* Main Content */}
@@ -34,12 +43,34 @@ interface HeaderProps {
     gpuActive: boolean
     activeView: ViewMode
     setActiveView: (view: ViewMode) => void
-    onOpenPipeline: () => void
 }
 
-function Header({ isConnected, gpuActive, activeView, setActiveView, onOpenPipeline }: HeaderProps) {
-    const statusColor = isConnected && gpuActive ? 'bg-green-500' : 'bg-red-500'
-    const statusText = isConnected ? (gpuActive ? 'GPU Active' : 'GPU Inactive') : 'Disconnected'
+function Header({ isConnected, gpuActive, activeView, setActiveView }: HeaderProps) {
+    const [devices, setDevices] = useState<ComputeDevice[]>([])
+    const [activeDevice, setActiveDevice] = useState<string>('cpu')
+    const [deviceDropdownOpen, setDeviceDropdownOpen] = useState(false)
+
+    // Fetch devices on mount
+    useEffect(() => {
+        const fetchDevices = async () => {
+            try {
+                const response = await fetch(`${API_BASE}/system/devices`)
+                if (response.ok) {
+                    const data = await response.json()
+                    setDevices(data.devices)
+                    setActiveDevice(data.active_device)
+                }
+            } catch (err) {
+                // Fallback to CPU only
+                setDevices([{ id: 'cpu', name: 'CPU', type: 'cpu', is_active: true }])
+            }
+        }
+        fetchDevices()
+    }, [])
+
+    const currentDevice = devices.find(d => d.id === activeDevice) || devices[0]
+    const statusText = currentDevice?.type === 'gpu' ? currentDevice.name : 'CPU'
+    const statusColor = isConnected && gpuActive ? 'bg-green-500' : 'bg-yellow-500'
 
     return (
         <header className="flex shrink-0 items-center justify-between border-b border-border-dark bg-surface-dark px-4 py-2 h-12 z-20">
@@ -59,19 +90,8 @@ function Header({ isConnected, gpuActive, activeView, setActiveView, onOpenPipel
 
                 <div className="h-4 w-px bg-border-dark mx-2"></div>
 
-                {/* Menu */}
-                <div className="flex items-center gap-6">
-                    <a className="text-text-secondary hover:text-white text-xs font-medium transition-colors cursor-pointer" href="#">File</a>
-                    <a className="text-text-secondary hover:text-white text-xs font-medium transition-colors cursor-pointer" href="#">Edit</a>
-                    <a className="text-text-secondary hover:text-white text-xs font-medium transition-colors cursor-pointer" href="#">View</a>
-                    <button
-                        className="text-text-secondary hover:text-white text-xs font-medium transition-colors cursor-pointer"
-                        onClick={onOpenPipeline}
-                    >
-                        Pipeline
-                    </button>
-                    <a className="text-text-secondary hover:text-white text-xs font-medium transition-colors cursor-pointer" href="#">Help</a>
-                </div>
+                {/* Menu Bar */}
+                <AppMenuBar />
             </div>
 
             <div className="flex items-center gap-4">
@@ -104,12 +124,56 @@ function Header({ isConnected, gpuActive, activeView, setActiveView, onOpenPipel
                     >
                         Batch
                     </button>
+                    <button
+                        className={`px-3 py-1 text-xs font-medium rounded-sm transition-colors ${activeView === 'pipeline'
+                            ? 'bg-primary text-white shadow-sm'
+                            : 'text-text-secondary hover:text-white hover:bg-panel-dark'
+                            }`}
+                        onClick={() => setActiveView('pipeline')}
+                    >
+                        Pipeline
+                    </button>
                 </div>
 
-                {/* GPU Status */}
-                <div className="flex items-center gap-2 text-text-secondary text-xs font-mono">
-                    <span className={`w-2 h-2 rounded-full ${statusColor}`}></span>
-                    {statusText}
+                {/* Device Selector */}
+                <div className="relative">
+                    <button
+                        onClick={() => setDeviceDropdownOpen(!deviceDropdownOpen)}
+                        className="flex items-center gap-2 text-text-secondary text-xs font-mono hover:text-white transition-colors px-2 py-1 rounded hover:bg-panel-dark"
+                    >
+                        <span className={`w-2 h-2 rounded-full ${statusColor}`}></span>
+                        <span>{statusText}</span>
+                        <span className="material-symbols-outlined text-[14px]">expand_more</span>
+                    </button>
+
+                    {/* Device Dropdown */}
+                    {deviceDropdownOpen && (
+                        <div className="absolute top-full right-0 mt-1 min-w-[180px] bg-surface-dark border border-border-dark rounded-md shadow-xl z-50 py-1">
+                            <div className="px-3 py-1.5 text-[10px] font-bold uppercase text-text-secondary border-b border-border-dark">
+                                Compute Device
+                            </div>
+                            {devices.map((device) => (
+                                <button
+                                    key={device.id}
+                                    className={`w-full flex items-center gap-2 px-3 py-2 text-xs transition-colors ${device.id === activeDevice
+                                        ? 'text-primary bg-primary/10'
+                                        : 'text-white hover:bg-panel-dark'
+                                        }`}
+                                    onClick={() => {
+                                        setActiveDevice(device.id)
+                                        setDeviceDropdownOpen(false)
+                                    }}
+                                >
+                                    <span className={`w-1.5 h-1.5 rounded-full ${device.type === 'gpu' ? 'bg-green-500' : 'bg-yellow-500'
+                                        }`}></span>
+                                    <span>{device.name}</span>
+                                    {device.id === activeDevice && (
+                                        <span className="material-symbols-outlined text-[14px] ml-auto">check</span>
+                                    )}
+                                </button>
+                            ))}
+                        </div>
+                    )}
                 </div>
 
                 {/* User Avatar */}

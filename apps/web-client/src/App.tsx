@@ -1,5 +1,6 @@
 import { Layout } from '@/components/Layout'
 import { PipelineEditor } from '@/components/PipelineEditor'
+import { PipelineEditorPage } from '@/pages/PipelineEditorPage'
 import { BatchProgressModal } from '@/components/BatchProgressModal'
 import { AnalysisWorkspace } from '@/pages/AnalysisWorkspace'
 import { ComparisonEngine } from '@/pages/ComparisonEngine'
@@ -13,6 +14,7 @@ function App() {
             <Layout>
                 {activeView === 'single' && <AnalysisWorkspace />}
                 {activeView === 'compare' && <ComparisonEngine />}
+                {activeView === 'pipeline' && <PipelineEditorPage />}
                 {activeView === 'batch' && (
                     <div className="flex-1 flex items-center justify-center bg-background-dark">
                         <div className="text-center">

@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type ViewMode = 'single' | 'compare' | 'batch'
+export type ViewMode = 'single' | 'compare' | 'batch' | 'pipeline'
 export type CompareMode = 'side-by-side' | 'swipe' | 'diff'
 
 export interface ImageMetadata {
@@ -77,6 +77,8 @@ interface AppState {
 
     // Pipeline steps
     pipelineSteps: PipelineStep[]
+    pipelineName: string
+    setPipelineName: (name: string) => void
     addPipelineStep: (step: PipelineStep) => void
     removePipelineStep: (id: string) => void
     updatePipelineStep: (id: string, updates: Partial<PipelineStep>) => void
@@ -174,6 +176,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     // Pipeline steps
     pipelineSteps: [],
+    pipelineName: '',
+    setPipelineName: (name) => set({ pipelineName: name }),
     addPipelineStep: (step) =>
         set((state) => ({
             pipelineSteps: [...state.pipelineSteps, step],
@@ -195,7 +199,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             steps.splice(toIndex, 0, removed)
             return { pipelineSteps: steps }
         }),
-    clearPipeline: () => set({ pipelineSteps: [] }),
+    clearPipeline: () => set({ pipelineSteps: [], pipelineName: '' }),
 
     // Batch processing
     batchProgress: null,
