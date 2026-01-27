@@ -368,16 +368,16 @@ function SwipeView({
                 )}
             </div>
 
-            {/* Image B (Top layer - clipped) */}
+            {/* Image B (Top layer - clipped from left) */}
             <div
                 className="absolute inset-0 flex items-center justify-center overflow-hidden"
                 style={{
-                    clipPath: `inset(0 ${100 - swipePosition}% 0 0)`,
+                    clipPath: `inset(0 0 0 ${swipePosition}%)`,
                 }}
             >
                 <div
                     className="absolute top-3 z-10 bg-orange-500/20 border border-orange-500/40 rounded px-2 py-0.5"
-                    style={{ right: `${100 - swipePosition + 1}%` }}
+                    style={{ left: `${swipePosition + 1}%` }}
                 >
                     <span className="text-xs text-orange-400 font-medium">B</span>
                 </div>

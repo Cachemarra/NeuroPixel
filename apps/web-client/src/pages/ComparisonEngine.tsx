@@ -3,18 +3,56 @@
  * Phase 4: Synchronized Comparison Engine with Swipe & Difference modes
  */
 
+import { useState, useRef } from 'react'
 import { useAppStore, CompareMode } from '@/store/appStore'
+import { useImageUpload } from '@/hooks/useImageUpload'
 import { ComparisonEngine as ComparisonViewer } from '@/components/ComparisonEngine'
 
 export function ComparisonEngine() {
-    const { images, compareSourceA, compareSourceB } = useAppStore()
+    const { images, compareSourceA, compareSourceB, setCompareSourceA, setCompareSourceB } = useAppStore()
+    const { uploadImage } = useImageUpload()
+    const fileInputRef = useRef<HTMLInputElement>(null)
+    const [targetSource, setTargetSource] = useState<'A' | 'B' | null>(null)
 
     // Get current comparison images for metrics
     const imageA = images.find((img) => img.id === compareSourceA)
     const imageB = images.find((img) => img.id === compareSourceB)
 
+    const handleSourceClick = (source: 'A' | 'B') => {
+        setTargetSource(source)
+        if (fileInputRef.current) {
+            fileInputRef.current.value = ''
+            fileInputRef.current.click()
+        }
+    }
+
+    const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files
+        if (!files || files.length === 0) return
+
+        // Upload first file
+        const imageData = await uploadImage(files[0])
+
+        if (imageData && targetSource) {
+            if (targetSource === 'A') {
+                setCompareSourceA(imageData.id)
+            } else {
+                setCompareSourceB(imageData.id)
+            }
+        }
+        setTargetSource(null)
+    }
+
     return (
         <>
+            <input
+                ref={fileInputRef}
+                type="file"
+                accept=".png,.jpg,.jpeg,.tif,.tiff,.bmp"
+                onChange={handleFileSelect}
+                className="hidden"
+            />
+
             {/* Main Comparison Viewer */}
             <div className="flex-1 flex flex-col min-w-0">
                 <ComparisonViewer />
@@ -55,10 +93,16 @@ export function ComparisonEngine() {
                         <h3 className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">Sources</h3>
 
                         {/* Image A Info */}
-                        <div className="p-3 rounded bg-panel-dark border border-border-dark">
-                            <div className="flex items-center gap-2 mb-2">
-                                <div className="w-2 h-2 rounded-full bg-cyan-500"></div>
-                                <span className="text-xs font-medium text-cyan-400">Source A</span>
+                        <div
+                            className="p-3 rounded bg-panel-dark border border-border-dark cursor-pointer hover:border-cyan-500/50 hover:bg-cyan-500/5 transition-colors group relative"
+                            onClick={() => handleSourceClick('A')}
+                        >
+                            <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-2 h-2 rounded-full bg-cyan-500"></div>
+                                    <span className="text-xs font-medium text-cyan-400">Source A</span>
+                                </div>
+                                <span className="material-symbols-outlined text-[16px] text-text-secondary opacity-0 group-hover:opacity-100 transition-opacity">upload</span>
                             </div>
                             {imageA ? (
                                 <div className="space-y-1 text-xs">
@@ -68,15 +112,21 @@ export function ComparisonEngine() {
                                     </p>
                                 </div>
                             ) : (
-                                <p className="text-xs text-text-secondary/50">Not selected</p>
+                                <p className="text-xs text-text-secondary/50">Click to select/upload...</p>
                             )}
                         </div>
 
                         {/* Image B Info */}
-                        <div className="p-3 rounded bg-panel-dark border border-border-dark">
-                            <div className="flex items-center gap-2 mb-2">
-                                <div className="w-2 h-2 rounded-full bg-orange-500"></div>
-                                <span className="text-xs font-medium text-orange-400">Source B</span>
+                        <div
+                            className="p-3 rounded bg-panel-dark border border-border-dark cursor-pointer hover:border-orange-500/50 hover:bg-orange-500/5 transition-colors group relative"
+                            onClick={() => handleSourceClick('B')}
+                        >
+                            <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-2 h-2 rounded-full bg-orange-500"></div>
+                                    <span className="text-xs font-medium text-orange-400">Source B</span>
+                                </div>
+                                <span className="material-symbols-outlined text-[16px] text-text-secondary opacity-0 group-hover:opacity-100 transition-opacity">upload</span>
                             </div>
                             {imageB ? (
                                 <div className="space-y-1 text-xs">
@@ -86,7 +136,7 @@ export function ComparisonEngine() {
                                     </p>
                                 </div>
                             ) : (
-                                <p className="text-xs text-text-secondary/50">Not selected</p>
+                                <p className="text-xs text-text-secondary/50">Click to select/upload...</p>
                             )}
                         </div>
                     </div>

@@ -18,13 +18,15 @@ export function AnalysisWorkspace() {
     const { uploadImage } = useImageUpload()
     const { categories, isLoading: pluginsLoading } = usePluginsByCategory()
 
-    // Fetch images from backend on mount
+    // Poll for images every 3 seconds to sync across tabs
     useEffect(() => {
         const fetchImages = async () => {
             try {
                 const response = await fetch(`${API_BASE}/images`)
                 if (!response.ok) return
                 const data = await response.json()
+                // Update store if different (simple check)
+                // For now, we'll just upsert to ensure we have everything
                 data.forEach((img: any) => {
                     addImage({
                         id: img.id,
@@ -43,14 +45,16 @@ export function AnalysisWorkspace() {
                     })
                 })
             } catch (error) {
-                console.error('Failed to fetch images:', error)
+                // Silent error on polling
             }
         }
-        fetchImages()
+
+        fetchImages() // Initial fetch
+        const interval = setInterval(fetchImages, 3000)
+        return () => clearInterval(interval)
     }, [])
 
     // Track which plugin is currently selected
-
     const [activePlugin, setActivePlugin] = useState<PluginSpec | null>(null)
     const [openCategory, setOpenCategory] = useState<string | null>(null)
 
@@ -64,9 +68,27 @@ export function AnalysisWorkspace() {
         for (const file of Array.from(files)) {
             await uploadImage(file)
         }
-
         e.target.value = ''
     }
+
+    // Drag and Drop Handlers
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault()
+        e.stopPropagation()
+    }
+
+    const handleDrop = async (e: React.DragEvent) => {
+        e.preventDefault()
+        e.stopPropagation()
+
+        const files = e.dataTransfer.files
+        if (!files || files.length === 0) return
+
+        for (const file of Array.from(files)) {
+            await uploadImage(file)
+        }
+    }
+
 
     const handleImportClick = () => {
         fileInputRef.current?.click()
@@ -98,7 +120,11 @@ export function AnalysisWorkspace() {
     }
 
     return (
-        <>
+        <div
+            className="flex h-screen w-screen overflow-hidden"
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+        >
             {/* Hidden file input */}
             <input
                 ref={fileInputRef}
@@ -414,7 +440,7 @@ export function AnalysisWorkspace() {
                     </button>
                 </div>
             </aside>
-        </>
+        </div>
     )
 }
 

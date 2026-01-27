@@ -45,13 +45,16 @@ function Header({ isConnected, gpuActive, activeView, setActiveView, onOpenPipel
         <header className="flex shrink-0 items-center justify-between border-b border-border-dark bg-surface-dark px-4 py-2 h-12 z-20">
             <div className="flex items-center gap-4 text-white">
                 {/* Logo */}
-                <div className="flex items-center gap-2">
+                <div
+                    className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-all active:scale-95"
+                    onClick={() => setActiveView('single')}
+                >
                     <div className="size-5 text-primary">
                         <svg fill="currentColor" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
                             <path d="M4 4H17.3334V17.3334H30.6666V30.6666H44V44H4V4Z"></path>
                         </svg>
                     </div>
-                    <h2 className="text-white text-base font-bold tracking-tight">NeuroPixel</h2>
+                    <h2 className="text-white text-base font-bold tracking-tight select-none">NeuroPixel</h2>
                 </div>
 
                 <div className="h-4 w-px bg-border-dark mx-2"></div>
@@ -76,8 +79,8 @@ function Header({ isConnected, gpuActive, activeView, setActiveView, onOpenPipel
                 <div className="bg-background-dark p-1 rounded-md border border-border-dark flex gap-1">
                     <button
                         className={`px-3 py-1 text-xs font-medium rounded-sm transition-colors ${activeView === 'single'
-                                ? 'bg-primary text-white shadow-sm'
-                                : 'text-text-secondary hover:text-white hover:bg-panel-dark'
+                            ? 'bg-primary text-white shadow-sm'
+                            : 'text-text-secondary hover:text-white hover:bg-panel-dark'
                             }`}
                         onClick={() => setActiveView('single')}
                     >
@@ -85,8 +88,8 @@ function Header({ isConnected, gpuActive, activeView, setActiveView, onOpenPipel
                     </button>
                     <button
                         className={`px-3 py-1 text-xs font-medium rounded-sm transition-colors ${activeView === 'compare'
-                                ? 'bg-primary text-white shadow-sm'
-                                : 'text-text-secondary hover:text-white hover:bg-panel-dark'
+                            ? 'bg-primary text-white shadow-sm'
+                            : 'text-text-secondary hover:text-white hover:bg-panel-dark'
                             }`}
                         onClick={() => setActiveView('compare')}
                     >
@@ -94,8 +97,8 @@ function Header({ isConnected, gpuActive, activeView, setActiveView, onOpenPipel
                     </button>
                     <button
                         className={`px-3 py-1 text-xs font-medium rounded-sm transition-colors ${activeView === 'batch'
-                                ? 'bg-primary text-white shadow-sm'
-                                : 'text-text-secondary hover:text-white hover:bg-panel-dark'
+                            ? 'bg-primary text-white shadow-sm'
+                            : 'text-text-secondary hover:text-white hover:bg-panel-dark'
                             }`}
                         onClick={() => setActiveView('batch')}
                     >

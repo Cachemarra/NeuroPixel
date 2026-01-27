@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.images import router as images_router
 from app.api.plugins import router as plugins_router
+from app.api.batch import router as batch_router
 from app.plugins.manager import initialize_plugins
 
 
@@ -40,6 +41,7 @@ app.add_middleware(
 # Include routers
 app.include_router(images_router)
 app.include_router(plugins_router)
+app.include_router(batch_router)
 
 
 @app.get("/health")

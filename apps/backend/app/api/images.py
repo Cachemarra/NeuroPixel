@@ -63,8 +63,32 @@ def read_image_with_metadata(file_path: Path) -> tuple[np.ndarray, ImageMetadata
         except Exception:
             img = cv2.imread(str(file_path), cv2.IMREAD_UNCHANGED)
     else:
-        # Use OpenCV for other formats
-        img = cv2.imread(str(file_path), cv2.IMREAD_UNCHANGED)
+        # Use PIL for other formats to handle EXIF orientation
+        try:
+            from PIL import Image, ImageOps
+            with Image.open(file_path) as pil_img:
+                # Apply EXIF transpose (rotation)
+                pil_img = ImageOps.exif_transpose(pil_img)
+                
+                # Convert to numpy array (RGB -> BGR for OpenCV)
+                img_rgb = np.array(pil_img)
+                
+                # Handle grayscale
+                if len(img_rgb.shape) == 2:
+                    img = img_rgb
+                # Handle RGBA
+                elif img_rgb.shape[2] == 4:
+                    img = cv2.cvtColor(img_rgb, cv2.COLOR_RGBA2BGRA)
+                # Handle RGB
+                else:
+                    img = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2BGR)
+                    
+        except ImportError:
+            # Fallback if PIL not installed
+            img = cv2.imread(str(file_path), cv2.IMREAD_UNCHANGED)
+        except Exception:
+             # Fallback on other errors
+            img = cv2.imread(str(file_path), cv2.IMREAD_UNCHANGED)
     
     if img is None:
         raise ValueError("Could not read image file")

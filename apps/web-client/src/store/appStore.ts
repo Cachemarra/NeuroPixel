@@ -27,6 +27,22 @@ export interface ViewportState {
     zoom: number
 }
 
+export interface PipelineStep {
+    id: string
+    pluginName: string
+    params: Record<string, any>
+    active: boolean
+}
+
+export interface BatchProgress {
+    jobId: string
+    status: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled'
+    current: number
+    total: number
+    filename?: string
+    elapsedSeconds: number
+}
+
 interface AppState {
     // Image management
     images: ImageData[]
@@ -58,6 +74,21 @@ interface AppState {
     isPipelineEditorOpen: boolean
     openPipelineEditor: () => void
     closePipelineEditor: () => void
+
+    // Pipeline steps
+    pipelineSteps: PipelineStep[]
+    addPipelineStep: (step: PipelineStep) => void
+    removePipelineStep: (id: string) => void
+    updatePipelineStep: (id: string, updates: Partial<PipelineStep>) => void
+    reorderPipelineSteps: (fromIndex: number, toIndex: number) => void
+    clearPipeline: () => void
+
+    // Batch processing
+    batchProgress: BatchProgress | null
+    setBatchProgress: (progress: BatchProgress | null) => void
+    isBatchModalOpen: boolean
+    openBatchModal: () => void
+    closeBatchModal: () => void
 
     // Backend connection status
     isBackendConnected: boolean
@@ -140,6 +171,38 @@ export const useAppStore = create<AppState>((set, get) => ({
     isPipelineEditorOpen: false,
     openPipelineEditor: () => set({ isPipelineEditorOpen: true }),
     closePipelineEditor: () => set({ isPipelineEditorOpen: false }),
+
+    // Pipeline steps
+    pipelineSteps: [],
+    addPipelineStep: (step) =>
+        set((state) => ({
+            pipelineSteps: [...state.pipelineSteps, step],
+        })),
+    removePipelineStep: (id) =>
+        set((state) => ({
+            pipelineSteps: state.pipelineSteps.filter((s) => s.id !== id),
+        })),
+    updatePipelineStep: (id, updates) =>
+        set((state) => ({
+            pipelineSteps: state.pipelineSteps.map((s) =>
+                s.id === id ? { ...s, ...updates } : s
+            ),
+        })),
+    reorderPipelineSteps: (fromIndex, toIndex) =>
+        set((state) => {
+            const steps = [...state.pipelineSteps]
+            const [removed] = steps.splice(fromIndex, 1)
+            steps.splice(toIndex, 0, removed)
+            return { pipelineSteps: steps }
+        }),
+    clearPipeline: () => set({ pipelineSteps: [] }),
+
+    // Batch processing
+    batchProgress: null,
+    setBatchProgress: (progress) => set({ batchProgress: progress }),
+    isBatchModalOpen: false,
+    openBatchModal: () => set({ isBatchModalOpen: true }),
+    closeBatchModal: () => set({ isBatchModalOpen: false, batchProgress: null }),
 
     // Backend status
     isBackendConnected: false,
