@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 
 export type ViewMode = 'single' | 'compare' | 'batch'
+export type CompareMode = 'side-by-side' | 'swipe' | 'diff'
 
 export interface ImageMetadata {
     width: number
@@ -20,6 +21,12 @@ export interface ImageData {
     isResult?: boolean
 }
 
+export interface ViewportState {
+    x: number
+    y: number
+    zoom: number
+}
+
 interface AppState {
     // Image management
     images: ImageData[]
@@ -34,6 +41,19 @@ interface AppState {
     activeView: ViewMode
     setActiveView: (view: ViewMode) => void
 
+    // Comparison state
+    compareSourceA: string | null
+    compareSourceB: string | null
+    compareMode: CompareMode
+    setCompareSourceA: (id: string | null) => void
+    setCompareSourceB: (id: string | null) => void
+    setCompareMode: (mode: CompareMode) => void
+
+    // Synchronized viewport state (source of truth for both viewers)
+    viewportState: ViewportState
+    setViewportState: (state: Partial<ViewportState>) => void
+    resetViewport: () => void
+
     // Pipeline editor modal
     isPipelineEditorOpen: boolean
     openPipelineEditor: () => void
@@ -47,6 +67,8 @@ interface AppState {
     isUploading: boolean
     setUploading: (uploading: boolean) => void
 }
+
+const DEFAULT_VIEWPORT: ViewportState = { x: 0, y: 0, zoom: 1 }
 
 export const useAppStore = create<AppState>((set, get) => ({
     // Image management
@@ -65,7 +87,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                     newImages[existingResultIndex] = {
                         ...newImages[existingResultIndex],
                         ...image,
-                        id: newImages[existingResultIndex].id, // Keep the same ID
+                        id: newImages[existingResultIndex].id,
                     }
                     return {
                         images: newImages,
@@ -97,6 +119,22 @@ export const useAppStore = create<AppState>((set, get) => ({
     // View mode
     activeView: 'single',
     setActiveView: (view) => set({ activeView: view }),
+
+    // Comparison state
+    compareSourceA: null,
+    compareSourceB: null,
+    compareMode: 'side-by-side',
+    setCompareSourceA: (id) => set({ compareSourceA: id }),
+    setCompareSourceB: (id) => set({ compareSourceB: id }),
+    setCompareMode: (mode) => set({ compareMode: mode }),
+
+    // Synchronized viewport state
+    viewportState: { ...DEFAULT_VIEWPORT },
+    setViewportState: (updates) =>
+        set((state) => ({
+            viewportState: { ...state.viewportState, ...updates },
+        })),
+    resetViewport: () => set({ viewportState: { ...DEFAULT_VIEWPORT } }),
 
     // Pipeline editor
     isPipelineEditorOpen: false,
