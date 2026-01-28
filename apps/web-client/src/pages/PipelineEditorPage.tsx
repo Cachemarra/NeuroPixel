@@ -7,6 +7,8 @@ import { useState } from 'react'
 import { useAppStore, PipelineStep } from '@/store/appStore'
 import { usePluginsByCategory } from '@/hooks/usePlugins'
 import type { PluginSpec, PluginParam, SelectOption } from '@/types/plugin'
+import { FolderPickerModal } from '@/components/FolderPickerModal'
+import { useFolderPicker } from '@/hooks/useFolderPicker'
 
 export function PipelineEditorPage() {
     const {
@@ -25,7 +27,12 @@ export function PipelineEditorPage() {
     const { categories, isLoading: pluginsLoading } = usePluginsByCategory()
     const [addStepDropdownOpen, setAddStepDropdownOpen] = useState(false)
     const [expandedStepId, setExpandedStepId] = useState<string | null>(null)
-    const [inputFolder, setInputFolder] = useState('')
+    const { batchInputFolder, setBatchInputFolder } = useAppStore()
+
+    const { openFolderPicker, isModalOpen, closeModal, handleModalSelect } = useFolderPicker(
+        (path) => setBatchInputFolder(path),
+        batchInputFolder
+    )
 
     // Flatten all plugins for selection
     const allPlugins = Object.values(categories).flat()
@@ -71,7 +78,7 @@ export function PipelineEditorPage() {
         const preset = {
             name: pipelineName || 'Untitled Pipeline',
             steps: pipelineSteps,
-            inputFolder: inputFolder,
+            inputFolder: batchInputFolder,
         }
         const blob = new Blob([JSON.stringify(preset, null, 2)], { type: 'application/json' })
         const url = URL.createObjectURL(blob)
@@ -97,8 +104,11 @@ export function PipelineEditorPage() {
                 if (preset.name) {
                     setPipelineName(preset.name)
                 }
+                if (preset.name) {
+                    setPipelineName(preset.name)
+                }
                 if (preset.inputFolder) {
-                    setInputFolder(preset.inputFolder)
+                    setBatchInputFolder(preset.inputFolder)
                 }
                 const loadedSteps = preset.steps || preset
                 loadedSteps.forEach((step: PipelineStep) => {
@@ -185,27 +195,13 @@ export function PipelineEditorPage() {
                         <div className="flex gap-2">
                             <input
                                 type="text"
-                                value={inputFolder}
-                                onChange={(e) => setInputFolder(e.target.value)}
+                                value={batchInputFolder}
+                                onChange={(e) => setBatchInputFolder(e.target.value)}
                                 placeholder="/path/to/images"
                                 className="flex-1 bg-background-dark border border-border-dark rounded px-3 py-2 text-sm text-white font-mono"
                             />
                             <button
-                                onClick={() => {
-                                    // Create folder input dialog
-                                    const input = document.createElement('input')
-                                    input.type = 'file'
-                                    input.webkitdirectory = true
-                                    input.onchange = () => {
-                                        const files = input.files
-                                        if (files && files.length > 0) {
-                                            // Get the folder path from the first file
-                                            const path = files[0].webkitRelativePath.split('/')[0]
-                                            setInputFolder(path || 'Selected folder')
-                                        }
-                                    }
-                                    input.click()
-                                }}
+                                onClick={openFolderPicker}
                                 className="px-3 py-2 bg-panel-dark border border-border-dark rounded text-text-secondary hover:text-white transition-colors"
                                 title="Browse for folder"
                             >
@@ -371,6 +367,13 @@ export function PipelineEditorPage() {
                     </button>
                 </div>
             </div>
+
+            <FolderPickerModal
+                isOpen={isModalOpen}
+                onClose={closeModal}
+                onSelect={handleModalSelect}
+                initialPath={batchInputFolder}
+            />
         </div>
     )
 }

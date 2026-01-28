@@ -2,6 +2,7 @@ import { Layout } from '@/components/Layout'
 import { PipelineEditor } from '@/components/PipelineEditor'
 import { PipelineEditorPage } from '@/pages/PipelineEditorPage'
 import { BatchProgressModal } from '@/components/BatchProgressModal'
+import { ShortcutsModal } from '@/components/ShortcutsModal'
 import { AnalysisWorkspace } from '@/pages/AnalysisWorkspace'
 import { ComparisonEngine } from '@/pages/ComparisonEngine'
 import { useAppStore } from '@/store/appStore'
@@ -31,6 +32,9 @@ function App() {
 
             {/* Batch Progress Modal */}
             <BatchProgressModal />
+
+            {/* Shortcuts Modal */}
+            <ShortcutsModal />
         </>
     )
 }

@@ -6,7 +6,7 @@ import os
 import platform
 import subprocess
 from pathlib import Path
-from typing import List, Literal
+from typing import List, Literal, Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -105,20 +105,63 @@ async def open_folder(folder_path: str = None):
         raise HTTPException(status_code=500, detail=f"Failed to open folder: {str(e)}")
 
 
+
+class FileEntry(BaseModel):
+    name: str
+    path: str
+    is_dir: bool
+
+class BrowseResponse(BaseModel):
+    current_path: str
+    parent_path: Optional[str]
+    entries: List[FileEntry]
+
+@router.post("/browse", response_model=BrowseResponse)
+async def browse_folder(path: str = None):
+    """
+    List contents of a directory for the folder picker.
+    """
+    if path is None or not path.strip():
+        path = str(Path.home())
+    
+    current = Path(path).resolve()
+    if not current.exists() or not current.is_dir():
+        # Fallback to home if invalid
+        current = Path.home()
+        
+    entries = []
+    
+    # List directories first, then files (optional, maybe just dirs for folder picker)
+    # The user wants to select a FOLDER, so we mainly care about dirs
+    try:
+        for p in current.iterdir():
+            if p.is_dir() and not p.name.startswith('.'):
+                 entries.append(FileEntry(name=p.name, path=str(p), is_dir=True))
+    except Exception:
+        pass # Ignore permission errors
+        
+    # Sort by name
+    entries.sort(key=lambda x: x.name.lower())
+    
+    return BrowseResponse(
+        current_path=str(current),
+        parent_path=str(current.parent) if current.parent != current else None,
+        entries=entries
+    )
+
 class ReloadPluginsResponse(BaseModel):
     """Response from plugin reload."""
     success: bool
     plugins_loaded: int
-
 
 @router.post("/reload-plugins", response_model=ReloadPluginsResponse)
 async def reload_plugins():
     """Reload all plugins from the plugins directory."""
     from app.plugins.manager import initialize_plugins, plugin_manager
     
-    initialize_plugins()
+    count = initialize_plugins()
     
     return ReloadPluginsResponse(
         success=True,
-        plugins_loaded=len(plugin_manager.get_all_plugins())
+        plugins_loaded=count
     )

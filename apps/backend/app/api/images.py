@@ -417,7 +417,7 @@ async def get_image_statistics(image_id: str):
 
 
 @router.get("/compare/{id_a}/{id_b}")
-async def compare_images(id_a: str, id_b: str):
+def compare_images(id_a: str, id_b: str):
     """
     Compare two images and return similarity metrics (SSIM, PSNR, MSE).
     Image A is treated as the reference.

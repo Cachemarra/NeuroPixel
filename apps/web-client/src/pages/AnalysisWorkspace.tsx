@@ -77,6 +77,46 @@ export function AnalysisWorkspace() {
     } | null>(null)
     const [visibleChannels, setVisibleChannels] = useState<Set<string>>(new Set(['red', 'green', 'blue', 'gray']))
 
+
+    // Interaction state
+    const [isDragging, setIsDragging] = useState(false)
+    const lastMousePos = useRef<{ x: number, y: number } | null>(null)
+
+    // Pan/Zoom handlers
+    const handleWheel = (e: React.WheelEvent) => {
+        if (!activeImageId) return
+        e.preventDefault()
+        const delta = -e.deltaY * 0.001
+        const newZoom = Math.min(Math.max(viewportState.zoom + delta, 0.1), 10)
+
+        // TODO: Zoom towards mouse pointer (currently center)
+        setViewportState({ zoom: newZoom })
+    }
+
+    const handleMouseDown = (e: React.MouseEvent) => {
+        if (!activeImageId) return
+        setIsDragging(true)
+        lastMousePos.current = { x: e.clientX, y: e.clientY }
+    }
+
+    const handleMouseMove = (e: React.MouseEvent) => {
+        if (!isDragging || !lastMousePos.current) return
+
+        const dx = e.clientX - lastMousePos.current.x
+        const dy = e.clientY - lastMousePos.current.y
+
+        setViewportState({
+            x: viewportState.x + dx,
+            y: viewportState.y + dy
+        })
+
+        lastMousePos.current = { x: e.clientX, y: e.clientY }
+    }
+
+    const handleMouseUp = () => {
+        setIsDragging(false)
+        lastMousePos.current = null
+    }
     // Fetch histogram and statistics when activeImageId changes
     useEffect(() => {
         if (!activeImageId) {
@@ -354,16 +394,34 @@ export function AnalysisWorkspace() {
                 </div>
 
                 {/* Canvas Area */}
-                <div className="flex-1 relative overflow-hidden flex items-center justify-center bg-[#101012] bg-[radial-gradient(#27272a_1px,transparent_1px)] [background-size:16px_16px]">
+                <div
+                    className="flex-1 relative overflow-hidden flex items-center justify-center bg-[#101012] bg-[radial-gradient(#27272a_1px,transparent_1px)] [background-size:16px_16px] cursor-move"
+                    onWheel={handleWheel}
+                    onMouseDown={handleMouseDown}
+                    onMouseMove={handleMouseMove}
+                    onMouseUp={handleMouseUp}
+                    onMouseLeave={handleMouseUp}
+                >
                     {/* Dynamic Image or Placeholder */}
-                    <div className="relative shadow-2xl shadow-black/50 border border-border-dark">
+                    <div
+                        className="relative shadow-2xl shadow-black/50 border border-border-dark"
+                        style={{
+                            transform: `translate(${viewportState.x}px, ${viewportState.y}px) scale(${viewportState.zoom})`,
+                            transition: isDragging ? 'none' : 'transform 0.1s ease-out'
+                        }}
+                    >
                         {activeImage ? (
                             /* Display the active image */
                             <img
                                 src={activeImage.url}
                                 alt={activeImage.name}
-                                className="max-w-[80vw] max-h-[70vh] object-contain"
-                                style={{ imageRendering: 'auto' }}
+                                className="max-w-[none] pointer-events-none select-none"
+                                draggable={false}
+                                style={{
+                                    imageRendering: 'auto',
+                                    // Remove restriction to allow pan/zoom
+                                    // max-w-[80vw] max-h-[70vh]
+                                }}
                             />
                         ) : (
                             /* Placeholder when no image */

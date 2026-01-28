@@ -91,6 +91,12 @@ interface AppState {
     isBatchModalOpen: boolean
     openBatchModal: () => void
     closeBatchModal: () => void
+    batchInputFolder: string
+    setBatchInputFolder: (folder: string) => void
+
+    // Shortcuts modal
+    isShortcutsOpen: boolean
+    toggleShortcuts: () => void
 
     // Backend connection status
     isBackendConnected: boolean
@@ -131,7 +137,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
             return {
                 images: [...state.images, image],
-                activeImageId: image.id,
+                activeImageId: state.activeImageId || image.id,
             }
         }),
     updateImage: (id, updates) =>
@@ -207,6 +213,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     isBatchModalOpen: false,
     openBatchModal: () => set({ isBatchModalOpen: true }),
     closeBatchModal: () => set({ isBatchModalOpen: false, batchProgress: null }),
+    batchInputFolder: '/mnt/HDD/data',
+    setBatchInputFolder: (folder) => set({ batchInputFolder: folder }),
+
+    // Shortcuts
+    isShortcutsOpen: false,
+    toggleShortcuts: () => set((state) => ({ isShortcutsOpen: !state.isShortcutsOpen })),
 
     // Backend status
     isBackendConnected: false,

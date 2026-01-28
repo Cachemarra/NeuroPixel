@@ -53,8 +53,11 @@ export function useImageUpload() {
                 },
             }
 
-            // Add to store (this also sets it as active)
+            // Add to store
             addImage(imageData)
+
+            // Explicitly set as active for manual uploads
+            useAppStore.getState().setActiveImage(imageData.id)
 
             return imageData
         } catch (error) {

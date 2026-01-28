@@ -29,9 +29,10 @@ websocket_connections: List[WebSocket] = []
 
 class BatchRunRequest(BaseModel):
     """Request to start a batch processing job."""
-    source_image_ids: List[str]
+    source_image_ids: List[str] = []
     pipeline_steps: List[PipelineStep]
     output_folder: str = "/tmp/neuropixel_batch_output"
+    input_folder: Optional[str] = None
 
 
 class BatchProgressMessage(BaseModel):
@@ -65,15 +66,17 @@ class BatchJob:
         job_id: str,
         source_image_ids: List[str],
         pipeline: Pipeline,
-        output_folder: Path
+        output_folder: Path,
+        source_paths: List[Path] = []
     ):
         self.job_id = job_id
         self.source_image_ids = source_image_ids
+        self.source_paths = source_paths
         self.pipeline = pipeline
         self.output_folder = output_folder
         self.status: Literal["pending", "processing", "completed", "failed", "cancelled"] = "pending"
         self.current = 0
-        self.total = len(source_image_ids)
+        self.total = len(source_image_ids) if source_image_ids else len(source_paths)
         self.processed = 0
         self.failed = 0
         self.errors: List[str] = []
@@ -137,30 +140,42 @@ async def run_batch_job(job: BatchJob):
     
     await broadcast_progress(job.get_progress_message())
     
-    for i, image_id in enumerate(job.source_image_ids):
+    items_to_process = []
+    if job.source_paths:
+        items_to_process = [(i, path) for i, path in enumerate(job.source_paths)]
+    else:
+        items_to_process = [(i, id) for i, id in enumerate(job.source_image_ids)]
+
+    for i, item in items_to_process:
         if job.cancelled:
             job.status = "cancelled"
             break
         
         job.current = i + 1
         
-        # Get image from cache
-        cache_entry = image_cache.get(image_id)
-        if cache_entry is None:
-            error_msg = f"Image {image_id} not found in cache"
-            job.errors.append(error_msg)
-            job.failed += 1
-            await broadcast_progress(job.get_progress_message())
-            continue
-        
-        filename = cache_entry.get("original_name", f"image_{i}.png")
-        
+        img = None
+        filename = f"image_{i}.png"
+
         try:
-            # Get image data
-            img = cache_entry.get("image")
-            if img is None:
-                file_path = cache_entry["path"]
-                img, _ = read_image_with_metadata(file_path)
+            if job.source_paths:
+                # Path-based processing
+                path = item
+                if not path.exists():
+                     raise FileNotFoundError(f"File not found: {path}")
+                filename = path.name
+                img, _ = read_image_with_metadata(path)
+            else:
+                # Cache-based processing
+                image_id = item
+                cache_entry = image_cache.get(image_id)
+                if cache_entry is None:
+                    raise ValueError(f"Image {image_id} not found in cache")
+                
+                filename = cache_entry.get("original_name", f"image_{i}.png")
+                img = cache_entry.get("image")
+                if img is None:
+                    file_path = cache_entry["path"]
+                    img, _ = read_image_with_metadata(file_path)
             
             # Execute pipeline
             result_image, exec_result = job.pipeline.execute(img)
@@ -214,9 +229,29 @@ async def start_batch_run(request: BatchRunRequest, background_tasks: Background
         raise HTTPException(status_code=400, detail=f"Invalid pipeline: {errors}")
     
     # Validate images exist
-    missing = [id for id in request.source_image_ids if id not in image_cache]
-    if missing:
-        raise HTTPException(status_code=404, detail=f"Images not found: {missing}")
+    source_paths = []
+    
+    if request.input_folder:
+        input_path = Path(request.input_folder)
+        if not input_path.exists():
+            raise HTTPException(status_code=404, detail=f"Input folder not found: {request.input_folder}")
+        
+        # Scan for images
+        extensions = {'.png', '.jpg', '.jpeg', '.tif', '.tiff', '.bmp'}
+        source_paths = [
+            p for p in input_path.iterdir() 
+            if p.is_file() and p.suffix.lower() in extensions
+        ]
+        
+        if not source_paths:
+            raise HTTPException(status_code=404, detail=f"No compatible images found in {request.input_folder}")
+            
+    elif request.source_image_ids:
+        missing = [id for id in request.source_image_ids if id not in image_cache]
+        if missing:
+            raise HTTPException(status_code=404, detail=f"Images not found: {missing}")
+    else:
+        raise HTTPException(status_code=400, detail="Must provide either input_folder or source_image_ids")
     
     # Create job
     job_id = str(uuid.uuid4())
@@ -226,7 +261,8 @@ async def start_batch_run(request: BatchRunRequest, background_tasks: Background
         job_id=job_id,
         source_image_ids=request.source_image_ids,
         pipeline=pipeline,
-        output_folder=output_folder
+        output_folder=output_folder,
+        source_paths=source_paths
     )
     
     batch_jobs[job_id] = job

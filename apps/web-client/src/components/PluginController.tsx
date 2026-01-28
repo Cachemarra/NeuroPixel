@@ -165,6 +165,7 @@ interface SliderControlProps {
 }
 
 function SliderControl({ param, value, onChange }: SliderControlProps) {
+    if (value === undefined || value === null) return null
     const displayValue = param.type === 'float' ? value.toFixed(2) : value.toString()
 
     // Calculate progress percentage for blue fill
