@@ -97,29 +97,124 @@ input[type='range']::-moz-range-progress {
   background-image: radial-gradient(#3f3f46 1px, transparent 1px);
 }
 
-/* Node connection socket style */
-.socket {
-  width: 12px;
-  height: 12px;
-  background-color: #52525b;
-  border: 2px solid #27272a;
-  border-radius: 50%;
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  cursor: pointer;
-  transition: background-color 0.2s;
+/* =============================================================================
+   React Flow Customization
+   ============================================================================= */
+
+/* Node base styling */
+.react-flow__node {
+  font-family: inherit;
 }
 
-.socket:hover {
-  background-color: #3c83f6;
-  border-color: white;
+.react-flow__node.selected .react-flow__handle {
+  box-shadow: 0 0 0 2px rgba(60, 131, 246, 0.5);
 }
 
-.socket.input {
-  left: -6px;
+/* Handle (socket) hover effects */
+.react-flow__handle:hover {
+  transform: scale(1.3);
+  box-shadow: 0 0 8px currentColor;
 }
 
-.socket.output {
-  right: -6px;
+/* Connection line styling */
+.react-flow__connection-line {
+  stroke: #6366f1;
+  stroke-width: 2;
+  stroke-dasharray: 5 5;
+  animation: dash 0.5s linear infinite;
+}
+
+@keyframes dash {
+  to {
+    stroke-dashoffset: -10;
+  }
+}
+
+/* Edge styling */
+.react-flow__edge-path {
+  stroke: #6366f1;
+  stroke-width: 2;
+}
+
+.react-flow__edge.selected .react-flow__edge-path,
+.react-flow__edge:hover .react-flow__edge-path {
+  stroke: #818cf8;
+  stroke-width: 3;
+}
+
+.react-flow__edge.animated .react-flow__edge-path {
+  stroke-dasharray: 5;
+  animation: dash 0.5s linear infinite;
+}
+
+/* Controls panel styling */
+.react-flow__controls {
+  background: #1e1e2e !important;
+  border: 1px solid #313244 !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+}
+
+.react-flow__controls-button {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 1px solid #313244 !important;
+  color: #a1a1aa !important;
+  width: 28px !important;
+  height: 28px !important;
+}
+
+.react-flow__controls-button:last-child {
+  border-bottom: none !important;
+}
+
+.react-flow__controls-button:hover {
+  background: #3c83f6 !important;
+  color: white !important;
+}
+
+.react-flow__controls-button svg {
+  fill: currentColor !important;
+}
+
+/* MiniMap styling */
+.react-flow__minimap {
+  background: #1e1e2e !important;
+  border: 1px solid #313244 !important;
+  border-radius: 8px !important;
+}
+
+/* Selection box */
+.react-flow__selection {
+  background: rgba(60, 131, 246, 0.1) !important;
+  border: 1px dashed #3c83f6 !important;
+}
+
+/* Attribution hiding */
+.react-flow__attribution {
+  display: none !important;
+}
+
+/* Smooth transitions for nodes */
+.react-flow__node {
+  transition: box-shadow 0.15s ease, transform 0.1s ease;
+}
+
+.react-flow__node:active {
+  transform: scale(1.02);
+}
+
+/* Line clamp utility for descriptions */
+.line-clamp-1 {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }

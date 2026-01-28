@@ -49,6 +49,7 @@ function Header({ isConnected, gpuActive, activeView, setActiveView }: HeaderPro
     const [devices, setDevices] = useState<ComputeDevice[]>([])
     const [activeDevice, setActiveDevice] = useState<string>('cpu')
     const [deviceDropdownOpen, setDeviceDropdownOpen] = useState(false)
+    const [userMenuOpen, setUserMenuOpen] = useState(false)
 
     // Fetch devices on mount
     useEffect(() => {
@@ -116,15 +117,6 @@ function Header({ isConnected, gpuActive, activeView, setActiveView }: HeaderPro
                         Compare
                     </button>
                     <button
-                        className={`px-3 py-1 text-xs font-medium rounded-sm transition-colors ${activeView === 'batch'
-                            ? 'bg-primary text-white shadow-sm'
-                            : 'text-text-secondary hover:text-white hover:bg-panel-dark'
-                            }`}
-                        onClick={() => setActiveView('batch')}
-                    >
-                        Batch
-                    </button>
-                    <button
                         className={`px-3 py-1 text-xs font-medium rounded-sm transition-colors ${activeView === 'pipeline'
                             ? 'bg-primary text-white shadow-sm'
                             : 'text-text-secondary hover:text-white hover:bg-panel-dark'
@@ -132,6 +124,15 @@ function Header({ isConnected, gpuActive, activeView, setActiveView }: HeaderPro
                         onClick={() => setActiveView('pipeline')}
                     >
                         Pipeline
+                    </button>
+                    <button
+                        className={`px-3 py-1 text-xs font-medium rounded-sm transition-colors ${activeView === 'batch'
+                            ? 'bg-primary text-white shadow-sm'
+                            : 'text-text-secondary hover:text-white hover:bg-panel-dark'
+                            }`}
+                        onClick={() => setActiveView('batch')}
+                    >
+                        Batch
                     </button>
                 </div>
 
@@ -177,12 +178,40 @@ function Header({ isConnected, gpuActive, activeView, setActiveView }: HeaderPro
                 </div>
 
                 {/* User Avatar */}
-                <div
-                    className="bg-center bg-no-repeat bg-cover rounded-full size-8 border border-border-dark bg-panel-dark flex items-center justify-center"
-                >
-                    <span className="material-symbols-outlined text-text-secondary text-base">person</span>
+                <div className="relative">
+                    <button
+                        onClick={() => setUserMenuOpen(!userMenuOpen)}
+                        className="bg-center bg-no-repeat bg-cover rounded-full size-8 border border-border-dark bg-panel-dark flex items-center justify-center hover:border-white/50 transition-colors"
+                    >
+                        <span className="material-symbols-outlined text-text-secondary text-base">person</span>
+                    </button>
+
+                    {/* User Menu Dropdown */}
+                    {userMenuOpen && (
+                        <div className="absolute top-full right-0 mt-2 w-48 bg-surface-dark border border-border-dark rounded-md shadow-xl z-50 py-1">
+                            <div className="px-4 py-3 border-b border-border-dark">
+                                <p className="text-sm font-medium text-white">Luis N</p>
+                                <p className="text-xs text-text-secondary truncate">luis@neuropixel.ai</p>
+                            </div>
+                            <div className="py-1">
+                                <button className="w-full text-left px-4 py-2 text-xs text-text-secondary hover:text-white hover:bg-panel-dark flex items-center gap-2">
+                                    <span className="material-symbols-outlined text-[16px]">person</span>
+                                    Profile
+                                </button>
+                                <button className="w-full text-left px-4 py-2 text-xs text-text-secondary hover:text-white hover:bg-panel-dark flex items-center gap-2">
+                                    <span className="material-symbols-outlined text-[16px]">settings</span>
+                                    Settings
+                                </button>
+                                <div className="h-px bg-border-dark my-1"></div>
+                                <button className="w-full text-left px-4 py-2 text-xs text-red-400 hover:bg-panel-dark flex items-center gap-2">
+                                    <span className="material-symbols-outlined text-[16px]">logout</span>
+                                    Sign out
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
-        </header>
+        </header >
     )
 }

@@ -1,95 +1,78 @@
 /**
- * PipelineEditorPage - Full-page pipeline editor view
- * Renders when Pipeline view mode is selected
+ * PipelineEditorPage - Full-page node graph pipeline editor
+ * ComfyUI-style workflow editor with draggable nodes and connections
  */
 
-import { useState } from 'react'
-import { useAppStore, PipelineStep } from '@/store/appStore'
-import { usePluginsByCategory } from '@/hooks/usePlugins'
-import type { PluginSpec, PluginParam, SelectOption } from '@/types/plugin'
-import { FolderPickerModal } from '@/components/FolderPickerModal'
-import { useFolderPicker } from '@/hooks/useFolderPicker'
+import { useCallback, useState } from 'react'
+import {
+    ReactFlow,
+    Background,
+    Controls,
+    MiniMap,
+    type OnConnect,
+    type Connection,
+    BackgroundVariant,
+    Panel,
+} from '@xyflow/react'
+import '@xyflow/react/dist/style.css'
+
+import { useAppStore } from '@/store/appStore'
+import { nodeTypes } from '@/components/nodes'
+import { NodePalette } from '@/components/NodePalette'
+import type { PipelineEdge } from '@/types/nodeGraph'
 
 export function PipelineEditorPage() {
     const {
-        pipelineSteps,
-        addPipelineStep,
-        removePipelineStep,
-        updatePipelineStep,
-        reorderPipelineSteps,
-        clearPipeline,
-        openBatchModal,
-        images,
+        pipelineNodes,
+        pipelineEdges,
+        onNodesChange,
+        onEdgesChange,
+        addEdge,
+        clearGraph,
         pipelineName,
         setPipelineName,
     } = useAppStore()
 
-    const { categories, isLoading: pluginsLoading } = usePluginsByCategory()
-    const [addStepDropdownOpen, setAddStepDropdownOpen] = useState(false)
-    const [expandedStepId, setExpandedStepId] = useState<string | null>(null)
-    const { batchInputFolder, setBatchInputFolder } = useAppStore()
+    const [isPaletteOpen, setIsPaletteOpen] = useState(false)
 
-    const { openFolderPicker, isModalOpen, closeModal, handleModalSelect } = useFolderPicker(
-        (path) => setBatchInputFolder(path),
-        batchInputFolder
+    // Handle new connections
+    const handleConnect: OnConnect = useCallback(
+        (connection: Connection) => {
+            if (!connection.source || !connection.target) return
+
+            const newEdge: PipelineEdge = {
+                id: `${connection.source}-${connection.sourceHandle}-${connection.target}-${connection.targetHandle}`,
+                source: connection.source,
+                target: connection.target,
+                sourceHandle: connection.sourceHandle,
+                targetHandle: connection.targetHandle,
+                type: 'smoothstep',
+                animated: true,
+                style: { stroke: '#6366f1', strokeWidth: 2 },
+            }
+            addEdge(newEdge)
+        },
+        [addEdge]
     )
 
-    // Flatten all plugins for selection
-    const allPlugins = Object.values(categories).flat()
-
-    const handleAddStep = (plugin: PluginSpec) => {
-        const newStep: PipelineStep = {
-            id: crypto.randomUUID(),
-            pluginName: plugin.name,
-            params: getDefaultParams(plugin),
-            active: true,
+    // Save workflow as JSON
+    const handleSaveWorkflow = () => {
+        const workflow = {
+            name: pipelineName || 'Untitled Workflow',
+            nodes: pipelineNodes,
+            edges: pipelineEdges,
         }
-        addPipelineStep(newStep)
-        setAddStepDropdownOpen(false)
-        setExpandedStepId(newStep.id)
-    }
-
-    const handleToggleActive = (stepId: string, active: boolean) => {
-        updatePipelineStep(stepId, { active })
-    }
-
-    const handleParamChange = (stepId: string, paramName: string, value: any) => {
-        const step = pipelineSteps.find((s) => s.id === stepId)
-        if (step) {
-            updatePipelineStep(stepId, {
-                params: { ...step.params, [paramName]: value },
-            })
-        }
-    }
-
-    const handleMoveStep = (index: number, direction: 'up' | 'down') => {
-        const newIndex = direction === 'up' ? index - 1 : index + 1
-        if (newIndex >= 0 && newIndex < pipelineSteps.length) {
-            reorderPipelineSteps(index, newIndex)
-        }
-    }
-
-    const handleRunBatch = () => {
-        if (pipelineSteps.length === 0) return
-        openBatchModal()
-    }
-
-    const handleSavePreset = () => {
-        const preset = {
-            name: pipelineName || 'Untitled Pipeline',
-            steps: pipelineSteps,
-            inputFolder: batchInputFolder,
-        }
-        const blob = new Blob([JSON.stringify(preset, null, 2)], { type: 'application/json' })
+        const blob = new Blob([JSON.stringify(workflow, null, 2)], { type: 'application/json' })
         const url = URL.createObjectURL(blob)
         const a = document.createElement('a')
         a.href = url
-        a.download = `${pipelineName || 'pipeline_preset'}.json`
+        a.download = `${pipelineName || 'workflow'}.json`
         a.click()
         URL.revokeObjectURL(url)
     }
 
-    const handleLoadPreset = () => {
+    // Load workflow from JSON
+    const handleLoadWorkflow = () => {
         const input = document.createElement('input')
         input.type = 'file'
         input.accept = '.json'
@@ -99,23 +82,21 @@ export function PipelineEditorPage() {
 
             try {
                 const text = await file.text()
-                const preset = JSON.parse(text)
-                clearPipeline()
-                if (preset.name) {
-                    setPipelineName(preset.name)
+                const workflow = JSON.parse(text)
+                clearGraph()
+                if (workflow.name) {
+                    setPipelineName(workflow.name)
                 }
-                if (preset.name) {
-                    setPipelineName(preset.name)
+                // Load nodes and edges
+                const { setNodes, setEdges } = useAppStore.getState()
+                if (workflow.nodes) {
+                    setNodes(workflow.nodes)
                 }
-                if (preset.inputFolder) {
-                    setBatchInputFolder(preset.inputFolder)
+                if (workflow.edges) {
+                    setEdges(workflow.edges)
                 }
-                const loadedSteps = preset.steps || preset
-                loadedSteps.forEach((step: PipelineStep) => {
-                    addPipelineStep({ ...step, id: crypto.randomUUID() })
-                })
             } catch (err) {
-                console.error('Failed to load preset:', err)
+                console.error('Failed to load workflow:', err)
             }
         }
         input.click()
@@ -124,7 +105,7 @@ export function PipelineEditorPage() {
     return (
         <div className="flex-1 flex flex-col bg-background-dark overflow-hidden">
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-border-dark bg-surface-dark px-6 py-4 shrink-0">
+            <div className="flex items-center justify-between border-b border-border-dark bg-surface-dark px-6 py-3 shrink-0">
                 <div className="flex items-center gap-4">
                     <div className="flex items-center gap-3">
                         <span className="material-symbols-outlined text-primary text-2xl">hub</span>
@@ -133,342 +114,146 @@ export function PipelineEditorPage() {
                                 type="text"
                                 value={pipelineName}
                                 onChange={(e) => setPipelineName(e.target.value)}
-                                placeholder="Untitled Pipeline"
-                                className="bg-transparent text-xl font-bold text-white border-none outline-none focus:border-b focus:border-primary"
+                                placeholder="Untitled Workflow"
+                                className="bg-transparent text-lg font-bold text-white border-none outline-none focus:border-b focus:border-primary"
                             />
                             <p className="text-text-secondary text-xs font-mono">
-                                {pipelineSteps.length} steps • {pipelineSteps.filter(s => s.active).length} active
+                                {pipelineNodes.length} nodes • {pipelineEdges.length} connections
                             </p>
                         </div>
                     </div>
                 </div>
 
                 <div className="flex items-center gap-3">
-                    {/* Add Step Button */}
-                    <div className="relative">
+                    {/* Add Node Button */}
+                    <button
+                        onClick={() => setIsPaletteOpen(!isPaletteOpen)}
+                        className={`flex items-center gap-2 px-4 py-2 rounded text-sm font-semibold transition-colors ${isPaletteOpen
+                            ? 'bg-primary text-white'
+                            : 'bg-primary/20 text-primary hover:bg-primary/30'
+                            }`}
+                    >
+                        <span className="material-symbols-outlined text-[20px]">add_circle</span>
+                        <span>Add Node</span>
+                    </button>
+
+                    {/* Clear Button */}
+                    {pipelineNodes.length > 0 && (
                         <button
-                            onClick={() => setAddStepDropdownOpen(!addStepDropdownOpen)}
-                            className="flex items-center gap-2 bg-primary hover:bg-blue-600 text-white px-4 py-2 rounded text-sm font-semibold transition-colors"
-                        >
-                            <span className="material-symbols-outlined text-[20px]">add_circle</span>
-                            <span>Add Step</span>
-                        </button>
-
-                        {/* Plugin Selection Dropdown */}
-                        {addStepDropdownOpen && (
-                            <div className="absolute top-full right-0 mt-2 w-64 bg-surface-dark border border-border-dark rounded-lg shadow-xl z-50 max-h-80 overflow-y-auto">
-                                {pluginsLoading ? (
-                                    <div className="p-4 text-center">
-                                        <span className="material-symbols-outlined animate-spin text-text-secondary">progress_activity</span>
-                                    </div>
-                                ) : (
-                                    Object.entries(categories).map(([category, plugins]) => (
-                                        <div key={category}>
-                                            <div className="px-3 py-2 text-[10px] font-bold uppercase text-text-secondary bg-panel-dark sticky top-0">
-                                                {category}
-                                            </div>
-                                            {plugins.map((plugin) => (
-                                                <button
-                                                    key={plugin.name}
-                                                    onClick={() => handleAddStep(plugin)}
-                                                    className="w-full px-3 py-2 text-left text-sm text-white hover:bg-primary/20 transition-colors"
-                                                >
-                                                    {plugin.display_name}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </div>
-
-            {/* Main Content */}
-            <div className="flex-1 flex overflow-hidden">
-                {/* Left Panel: Configuration (Input Folder + Summary) */}
-                <div className="w-[320px] border-r border-border-dark bg-surface-dark overflow-y-auto p-4 space-y-6">
-                    {/* Input Folder */}
-                    <div className="space-y-2">
-                        <label className="text-xs text-text-secondary uppercase font-bold">Input Folder</label>
-                        <div className="flex gap-2">
-                            <input
-                                type="text"
-                                value={batchInputFolder}
-                                onChange={(e) => setBatchInputFolder(e.target.value)}
-                                placeholder="/path/to/images"
-                                className="flex-1 bg-background-dark border border-border-dark rounded px-3 py-2 text-sm text-white font-mono"
-                            />
-                            <button
-                                onClick={openFolderPicker}
-                                className="px-3 py-2 bg-panel-dark border border-border-dark rounded text-text-secondary hover:text-white transition-colors"
-                                title="Browse for folder"
-                            >
-                                <span className="material-symbols-outlined text-[20px]">folder_open</span>
-                            </button>
-                        </div>
-                        <p className="text-[10px] text-text-secondary">Source folder for batch processing</p>
-                    </div>
-
-                    {/* Summary */}
-                    <div className="bg-panel-dark border border-border-dark rounded-lg p-4 space-y-3">
-                        <h3 className="text-sm font-semibold text-white">Pipeline Summary</h3>
-                        <div className="grid grid-cols-2 gap-4 text-sm">
-                            <div>
-                                <p className="text-text-secondary">Steps</p>
-                                <p className="text-white font-mono">{pipelineSteps.length}</p>
-                            </div>
-                            <div>
-                                <p className="text-text-secondary">Active</p>
-                                <p className="text-white font-mono">{pipelineSteps.filter(s => s.active).length}</p>
-                            </div>
-                            <div>
-                                <p className="text-text-secondary">Images in Explorer</p>
-                                <p className="text-white font-mono">{images.length}</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Right Panel: Pipeline Steps */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                    {pipelineSteps.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center h-full text-center">
-                            <span className="material-symbols-outlined text-6xl text-text-secondary/30">layers</span>
-                            <p className="text-text-secondary mt-4">No steps configured</p>
-                            <p className="text-text-secondary/60 text-sm mt-1">Click "Add Step" to begin</p>
-                        </div>
-                    ) : (
-                        pipelineSteps.map((step, index) => {
-                            const plugin = allPlugins.find((p) => p.name === step.pluginName)
-                            const isExpanded = expandedStepId === step.id
-
-                            return (
-                                <div
-                                    key={step.id}
-                                    className={`rounded-lg border transition-all ${step.active
-                                        ? 'bg-panel-dark border-border-dark'
-                                        : 'bg-panel-dark/50 border-border-dark/50 opacity-60'
-                                        } ${isExpanded ? 'ring-1 ring-primary/30' : ''}`}
-                                >
-                                    {/* Step Header */}
-                                    <div
-                                        className="flex items-center justify-between px-4 py-3 cursor-pointer"
-                                        onClick={() => setExpandedStepId(isExpanded ? null : step.id)}
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <span className="w-6 h-6 rounded-full bg-primary/20 text-primary text-xs font-bold flex items-center justify-center">
-                                                {index + 1}
-                                            </span>
-                                            <span className="text-white font-medium">
-                                                {plugin?.display_name || step.pluginName}
-                                            </span>
-                                        </div>
-
-                                        <div className="flex items-center gap-2">
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation()
-                                                    handleToggleActive(step.id, !step.active)
-                                                }}
-                                                className={`p-1 rounded transition-colors ${step.active ? 'text-green-500' : 'text-text-secondary'
-                                                    }`}
-                                            >
-                                                <span className="material-symbols-outlined text-[18px]">
-                                                    {step.active ? 'check_circle' : 'cancel'}
-                                                </span>
-                                            </button>
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation()
-                                                    handleMoveStep(index, 'up')
-                                                }}
-                                                disabled={index === 0}
-                                                className="p-1 text-text-secondary hover:text-white disabled:opacity-30 transition-colors"
-                                            >
-                                                <span className="material-symbols-outlined text-[18px]">arrow_upward</span>
-                                            </button>
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation()
-                                                    handleMoveStep(index, 'down')
-                                                }}
-                                                disabled={index === pipelineSteps.length - 1}
-                                                className="p-1 text-text-secondary hover:text-white disabled:opacity-30 transition-colors"
-                                            >
-                                                <span className="material-symbols-outlined text-[18px]">arrow_downward</span>
-                                            </button>
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation()
-                                                    removePipelineStep(step.id)
-                                                }}
-                                                className="p-1 text-text-secondary hover:text-red-500 transition-colors"
-                                            >
-                                                <span className="material-symbols-outlined text-[18px]">delete</span>
-                                            </button>
-                                            <span className={`material-symbols-outlined text-text-secondary transition-transform ${isExpanded ? 'rotate-180' : ''}`}>
-                                                expand_more
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    {/* Parameter Controls */}
-                                    {isExpanded && plugin && (
-                                        <div className="border-t border-border-dark px-4 py-3">
-                                            <PluginControllerInline
-                                                spec={plugin}
-                                                params={step.params}
-                                                onParamChange={(name, value) => handleParamChange(step.id, name, value)}
-                                            />
-                                        </div>
-                                    )}
-                                </div>
-                            )
-                        })
-                    )}
-                </div>
-            </div>
-
-            {/* Footer */}
-            <div className="h-16 bg-surface-dark border-t border-border-dark flex items-center justify-between px-6 shrink-0">
-                <div className="flex items-center gap-4">
-                    {pipelineSteps.length > 0 && (
-                        <button
-                            onClick={clearPipeline}
-                            className="text-xs text-text-secondary hover:text-red-500 transition-colors"
+                            onClick={clearGraph}
+                            className="px-3 py-2 text-sm text-text-secondary hover:text-red-400 transition-colors"
                         >
                             Clear All
                         </button>
                     )}
-                </div>
-                <div className="flex items-center gap-3">
+
+                    {/* Load/Save */}
                     <button
+                        onClick={handleLoadWorkflow}
                         className="px-4 py-2 text-sm font-medium text-white border border-border-dark rounded bg-panel-dark hover:bg-surface-dark transition-colors"
-                        onClick={handleLoadPreset}
                     >
-                        Load Preset
+                        Load
                     </button>
                     <button
-                        className="px-4 py-2 text-sm font-medium text-white border border-border-dark rounded bg-panel-dark hover:bg-surface-dark transition-colors"
-                        onClick={handleSavePreset}
-                        disabled={pipelineSteps.length === 0}
+                        onClick={handleSaveWorkflow}
+                        disabled={pipelineNodes.length === 0}
+                        className="px-4 py-2 text-sm font-medium text-white border border-border-dark rounded bg-panel-dark hover:bg-surface-dark transition-colors disabled:opacity-50"
                     >
-                        Save Preset
+                        Save
                     </button>
+
+                    {/* Run Button */}
                     <button
-                        className="group flex items-center gap-2 bg-white text-black px-5 py-2 rounded text-sm font-bold hover:bg-zinc-200 transition-all active:scale-95 disabled:opacity-50"
-                        onClick={handleRunBatch}
-                        disabled={pipelineSteps.length === 0}
+                        disabled={pipelineNodes.length === 0}
+                        className="group flex items-center gap-2 bg-white text-black px-5 py-2 rounded text-sm font-bold hover:bg-zinc-200 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        <span className="material-symbols-outlined text-[20px]">play_arrow</span>
-                        <span>Run Batch</span>
+                        <span className="material-symbols-outlined text-[20px] group-hover:rotate-180 transition-transform duration-500">
+                            play_arrow
+                        </span>
+                        <span>Execute</span>
                     </button>
                 </div>
             </div>
 
-            <FolderPickerModal
-                isOpen={isModalOpen}
-                onClose={closeModal}
-                onSelect={handleModalSelect}
-                initialPath={batchInputFolder}
-            />
-        </div>
-    )
-}
+            {/* React Flow Canvas */}
+            <div className="flex-1 relative">
+                <ReactFlow
+                    nodes={pipelineNodes}
+                    edges={pipelineEdges}
+                    onNodesChange={onNodesChange}
+                    onEdgesChange={onEdgesChange}
+                    onConnect={handleConnect}
+                    nodeTypes={nodeTypes}
+                    fitView
+                    snapToGrid
+                    snapGrid={[20, 20]}
+                    defaultEdgeOptions={{
+                        type: 'smoothstep',
+                        animated: true,
+                        style: { stroke: '#6366f1', strokeWidth: 2 },
+                    }}
+                    proOptions={{ hideAttribution: true }}
+                    className="bg-background-dark"
+                >
+                    <Background
+                        variant={BackgroundVariant.Dots}
+                        gap={20}
+                        size={1}
+                        color="#3f3f46"
+                    />
+                    <Controls
+                        className="!bg-surface-dark !border-border-dark !shadow-lg"
+                        showZoom
+                        showFitView
+                        showInteractive
+                    />
+                    <MiniMap
+                        className="!bg-surface-dark !border-border-dark"
+                        nodeColor={(node) => {
+                            switch (node.type) {
+                                case 'load_image':
+                                    return '#10b981'
+                                case 'save_image':
+                                    return '#3b82f6'
+                                case 'preview':
+                                    return '#8b5cf6'
+                                case 'markdown_note':
+                                    return '#f59e0b'
+                                case 'operator':
+                                    return '#6366f1'
+                                default:
+                                    return '#6b7280'
+                            }
+                        }}
+                        maskColor="rgba(0, 0, 0, 0.7)"
+                    />
 
-// Inline plugin controller
-function PluginControllerInline({
-    spec,
-    params,
-    onParamChange,
-}: {
-    spec: PluginSpec
-    params: Record<string, any>
-    onParamChange: (name: string, value: any) => void
-}) {
-    return (
-        <div className="space-y-3">
-            {spec.params.map((param: PluginParam) => {
-                const defaultValue = 'default' in param ? param.default : undefined
-                const value = params[param.name] ?? defaultValue
-
-                if (param.type === 'int' || param.type === 'float') {
-                    return (
-                        <div key={param.name} className="flex flex-col gap-1">
-                            <div className="flex justify-between items-center">
-                                <label className="text-xs text-text-secondary">{param.label}</label>
-                                <span className="text-xs font-mono text-primary bg-primary/10 px-1.5 rounded">
-                                    {param.type === 'float' ? value.toFixed(2) : value}
+                    {/* Empty State */}
+                    {pipelineNodes.length === 0 && (
+                        <Panel position="top-center" className="mt-20">
+                            <div className="text-center bg-surface-dark/90 backdrop-blur-sm border border-border-dark rounded-lg px-8 py-6">
+                                <span className="material-symbols-outlined text-5xl text-text-secondary/30">
+                                    account_tree
                                 </span>
+                                <p className="text-white mt-3 font-medium">Start building your workflow</p>
+                                <p className="text-text-secondary text-sm mt-1">
+                                    Click "Add Node" to add nodes to the canvas
+                                </p>
+                                <button
+                                    onClick={() => setIsPaletteOpen(true)}
+                                    className="mt-4 flex items-center gap-2 mx-auto bg-primary hover:bg-blue-600 text-white px-4 py-2 rounded text-sm font-semibold transition-colors"
+                                >
+                                    <span className="material-symbols-outlined text-[18px]">add_circle</span>
+                                    <span>Add Node</span>
+                                </button>
                             </div>
-                            <input
-                                type="range"
-                                min={param.min}
-                                max={param.max}
-                                step={param.step ?? (param.type === 'float' ? 0.1 : 1)}
-                                value={value}
-                                onChange={(e) =>
-                                    onParamChange(
-                                        param.name,
-                                        param.type === 'float' ? parseFloat(e.target.value) : parseInt(e.target.value)
-                                    )
-                                }
-                                className="w-full"
-                            />
-                        </div>
-                    )
-                }
+                        </Panel>
+                    )}
+                </ReactFlow>
 
-                if (param.type === 'select') {
-                    return (
-                        <div key={param.name} className="flex flex-col gap-1">
-                            <label className="text-xs text-text-secondary">{param.label}</label>
-                            <select
-                                value={value}
-                                onChange={(e) => onParamChange(param.name, e.target.value)}
-                                className="bg-background-dark border border-border-dark rounded px-2 py-1 text-xs text-white"
-                            >
-                                {param.options?.map((opt: SelectOption) => (
-                                    <option key={opt.value} value={opt.value}>
-                                        {opt.label}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                    )
-                }
-
-                if (param.type === 'bool') {
-                    return (
-                        <div key={param.name} className="flex items-center justify-between">
-                            <label className="text-xs text-text-secondary">{param.label}</label>
-                            <input
-                                type="checkbox"
-                                checked={value}
-                                onChange={(e) => onParamChange(param.name, e.target.checked)}
-                                className="accent-primary"
-                            />
-                        </div>
-                    )
-                }
-
-                return null
-            })}
+                {/* Node Palette */}
+                <NodePalette isOpen={isPaletteOpen} onClose={() => setIsPaletteOpen(false)} />
+            </div>
         </div>
     )
-}
-
-// Helper to get default params from a plugin spec
-function getDefaultParams(plugin: PluginSpec): Record<string, any> {
-    const params: Record<string, any> = {}
-    for (const param of plugin.params) {
-        if ('default' in param) {
-            params[param.name] = param.default
-        } else if (param.type === 'range') {
-            params[param.name] = [param.default_low, param.default_high]
-        }
-    }
-    return params
 }

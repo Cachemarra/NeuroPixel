@@ -92,3 +92,22 @@ export interface PluginRunResponse {
     plugin_name: string
     params_used: Record<string, unknown>
 }
+
+// =============================================================================
+// Node Graph Socket Types
+// =============================================================================
+
+export type SocketType = 'image' | 'mask' | 'number' | 'string' | 'any'
+
+export interface NodeInput {
+    name: string
+    type: SocketType
+    label: string
+    required?: boolean
+}
+
+export interface NodeOutput {
+    name: string
+    type: SocketType
+    label: string
+}

@@ -82,10 +82,14 @@ export function useRunPlugin() {
             const inputImage = images.find((img) => img.id === variables.image_id)
             const rootId = inputImage?.sourceId || variables.image_id
 
+            // Construct name: SourceName_modified.png
+            const baseName = inputImage?.name.replace(/\.[^/.]+$/, "") || variables.image_id
+            const newName = `${baseName}_modified.png`
+
             // Add/Update the result image in the store
             addImage({
                 id: data.result_id,
-                name: `${data.plugin_name}_result.png`,
+                name: newName,
                 url: data.result_url,
                 thumbnailUrl: `${API_BASE}/images/${data.result_id}/thumbnail`,
                 isResult: true,

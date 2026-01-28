@@ -1,4 +1,7 @@
 import { create } from 'zustand'
+import { applyNodeChanges, applyEdgeChanges } from '@xyflow/react'
+import type { NodeChange, EdgeChange } from '@xyflow/react'
+import type { PipelineNode, PipelineEdge, NodeData } from '@/types/nodeGraph'
 
 export type ViewMode = 'single' | 'compare' | 'batch' | 'pipeline'
 export type CompareMode = 'side-by-side' | 'swipe' | 'diff'
@@ -75,7 +78,7 @@ interface AppState {
     openPipelineEditor: () => void
     closePipelineEditor: () => void
 
-    // Pipeline steps
+    // Pipeline steps (legacy, kept for batch modal compatibility)
     pipelineSteps: PipelineStep[]
     pipelineName: string
     setPipelineName: (name: string) => void
@@ -84,6 +87,20 @@ interface AppState {
     updatePipelineStep: (id: string, updates: Partial<PipelineStep>) => void
     reorderPipelineSteps: (fromIndex: number, toIndex: number) => void
     clearPipeline: () => void
+
+    // Node Graph (new ComfyUI-style workflow)
+    pipelineNodes: PipelineNode[]
+    pipelineEdges: PipelineEdge[]
+    setNodes: (nodes: PipelineNode[]) => void
+    setEdges: (edges: PipelineEdge[]) => void
+    onNodesChange: (changes: import('@xyflow/react').NodeChange<PipelineNode>[]) => void
+    onEdgesChange: (changes: import('@xyflow/react').EdgeChange<PipelineEdge>[]) => void
+    addNode: (node: PipelineNode) => void
+    removeNode: (nodeId: string) => void
+    updateNodeData: (nodeId: string, data: Partial<NodeData>) => void
+    addEdge: (edge: PipelineEdge) => void
+    removeEdge: (edgeId: string) => void
+    clearGraph: () => void
 
     // Batch processing
     batchProgress: BatchProgress | null
@@ -97,6 +114,8 @@ interface AppState {
     // Shortcuts modal
     isShortcutsOpen: boolean
     toggleShortcuts: () => void
+    isAboutModalOpen: boolean
+    setAboutModalOpen: (isOpen: boolean) => void
 
     // Backend connection status
     isBackendConnected: boolean
@@ -130,7 +149,10 @@ export const useAppStore = create<AppState>((set, get) => ({
                     }
                     return {
                         images: newImages,
-                        activeImageId: newImages[existingResultIndex].id,
+                        // Only keep it active if it was already active, otherwise preserve current active
+                        activeImageId: state.activeImageId === newImages[existingResultIndex].id
+                            ? newImages[existingResultIndex].id
+                            : state.activeImageId,
                     }
                 }
             }
@@ -207,6 +229,50 @@ export const useAppStore = create<AppState>((set, get) => ({
         }),
     clearPipeline: () => set({ pipelineSteps: [], pipelineName: '' }),
 
+    // Node Graph state and actions
+    pipelineNodes: [],
+    pipelineEdges: [],
+    setNodes: (nodes) => set({ pipelineNodes: nodes }),
+    setEdges: (edges) => set({ pipelineEdges: edges }),
+    onNodesChange: (changes: NodeChange<PipelineNode>[]) => {
+        set((state) => ({
+            pipelineNodes: applyNodeChanges(changes, state.pipelineNodes) as PipelineNode[],
+        }))
+    },
+    onEdgesChange: (changes: EdgeChange<PipelineEdge>[]) => {
+        set((state) => ({
+            pipelineEdges: applyEdgeChanges(changes, state.pipelineEdges) as PipelineEdge[],
+        }))
+    },
+    addNode: (node) =>
+        set((state) => ({
+            pipelineNodes: [...state.pipelineNodes, node],
+        })),
+    removeNode: (nodeId) =>
+        set((state) => ({
+            pipelineNodes: state.pipelineNodes.filter((n) => n.id !== nodeId),
+            pipelineEdges: state.pipelineEdges.filter(
+                (e) => e.source !== nodeId && e.target !== nodeId
+            ),
+        })),
+    updateNodeData: (nodeId, data) =>
+        set((state) => ({
+            pipelineNodes: state.pipelineNodes.map((n) =>
+                n.id === nodeId
+                    ? { ...n, data: { ...n.data, ...data } as NodeData }
+                    : n
+            ),
+        })),
+    addEdge: (edge) =>
+        set((state) => ({
+            pipelineEdges: [...state.pipelineEdges, edge],
+        })),
+    removeEdge: (edgeId) =>
+        set((state) => ({
+            pipelineEdges: state.pipelineEdges.filter((e) => e.id !== edgeId),
+        })),
+    clearGraph: () => set({ pipelineNodes: [], pipelineEdges: [], pipelineName: '' }),
+
     // Batch processing
     batchProgress: null,
     setBatchProgress: (progress) => set({ batchProgress: progress }),
@@ -219,6 +285,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     // Shortcuts
     isShortcutsOpen: false,
     toggleShortcuts: () => set((state) => ({ isShortcutsOpen: !state.isShortcutsOpen })),
+    isAboutModalOpen: false,
+    setAboutModalOpen: (isOpen) => set({ isAboutModalOpen: isOpen }),
 
     // Backend status
     isBackendConnected: false,

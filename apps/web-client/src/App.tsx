@@ -3,6 +3,7 @@ import { PipelineEditor } from '@/components/PipelineEditor'
 import { PipelineEditorPage } from '@/pages/PipelineEditorPage'
 import { BatchProgressModal } from '@/components/BatchProgressModal'
 import { ShortcutsModal } from '@/components/ShortcutsModal'
+import { AboutModal } from '@/components/AboutModal'
 import { AnalysisWorkspace } from '@/pages/AnalysisWorkspace'
 import { ComparisonEngine } from '@/pages/ComparisonEngine'
 import { useAppStore } from '@/store/appStore'
@@ -35,6 +36,9 @@ function App() {
 
             {/* Shortcuts Modal */}
             <ShortcutsModal />
+
+            {/* About Modal */}
+            <AboutModal />
         </>
     )
 }

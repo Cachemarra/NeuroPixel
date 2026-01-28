@@ -30,6 +30,7 @@ export function FolderPickerModal({
     title = 'Select Folder'
 }: FolderPickerModalProps) {
     const [currentPath, setCurrentPath] = useState(initialPath)
+    const [selectedEntryPath, setSelectedEntryPath] = useState<string | null>(null)
     const [entries, setEntries] = useState<BrowseResponse['entries']>([])
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -70,15 +71,23 @@ export function FolderPickerModal({
 
     const handleNavigate = (path: string) => {
         loadDir(path)
+        setSelectedEntryPath(null)
+    }
+
+    const handleEntryClick = (path: string) => {
+        if (selectedEntryPath === path) {
+            // Double click / second click -> Navigate
+            handleNavigate(path)
+        } else {
+            // Single click -> Select
+            setSelectedEntryPath(path)
+        }
     }
 
     const handleSelect = () => {
-        // If an entry is selected, it's a subdir, maybe we want to select THAT
-        // But usually we select the 'currentPath' or the highlighted subdir.
-        // Let's assume the button selects the CURRENT path shown.
-        // Or if we picked a subfolder, we navigate to it.
-        // Actually typical folder pickers work by navigating to the desired folder then clicking "Select"
-        onSelect(currentPath)
+        // Prefer selected entry, fall back to current path
+        const result = selectedEntryPath || currentPath
+        onSelect(result)
         onClose()
     }
 
@@ -143,16 +152,22 @@ export function FolderPickerModal({
                                     Empty Directory
                                 </div>
                             )}
-                            {entries.map((entry) => (
-                                <div
-                                    key={entry.path}
-                                    onClick={() => handleNavigate(entry.path)}
-                                    className={`flex items-center gap-2 p-2 rounded cursor-pointer transition-colors hover:bg-white/5 border border-transparent hover:border-white/10`}
-                                >
-                                    <span className="material-symbols-outlined text-yellow-500">folder</span>
-                                    <span className="text-sm text-white truncate" title={entry.name}>{entry.name}</span>
-                                </div>
-                            ))}
+                            {entries.map((entry) => {
+                                const isSelected = selectedEntryPath === entry.path
+                                return (
+                                    <div
+                                        key={entry.path}
+                                        onClick={() => handleEntryClick(entry.path)}
+                                        className={`flex items-center gap-2 p-2 rounded cursor-pointer transition-colors border ${isSelected
+                                            ? 'bg-primary/20 border-primary'
+                                            : 'hover:bg-white/5 border-transparent hover:border-white/10'
+                                            }`}
+                                    >
+                                        <span className="material-symbols-outlined text-yellow-500">folder</span>
+                                        <span className="text-sm text-white truncate" title={entry.name}>{entry.name}</span>
+                                    </div>
+                                )
+                            })}
                         </div>
                     )}
                 </div>
