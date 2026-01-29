@@ -8,8 +8,8 @@ import { useAppStore } from '@/store/appStore'
 import { FolderPickerModal } from '@/components/FolderPickerModal'
 import { useFolderPicker } from '@/hooks/useFolderPicker'
 
-const API_BASE = 'http://localhost:8000'
-const WS_URL = 'ws://localhost:8000/batch/ws/progress'
+const API_BASE = 'http://localhost:8001'
+const WS_URL = 'ws://localhost:8001/batch/ws/progress'
 
 export function BatchProgressModal() {
     const {

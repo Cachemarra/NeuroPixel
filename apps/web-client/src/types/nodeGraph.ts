@@ -43,6 +43,7 @@ export interface SaveImageNodeData extends BaseNodeData {
     nodeType: 'save_image'
     filename: string
     format: 'png' | 'jpg' | 'webp'
+    outputPath?: string
 }
 
 // Markdown Note node
@@ -59,12 +60,21 @@ export interface PreviewNodeData extends BaseNodeData {
     previewUrl: string | null
 }
 
+// Load Batch node for batch folder operations
+export interface LoadBatchNodeData extends BaseNodeData {
+    nodeType: 'load_batch'
+    folderPath: string
+    filePattern: string
+    imageCount: number
+}
+
 export type NodeData =
     | OperatorNodeData
     | LoadImageNodeData
     | SaveImageNodeData
     | MarkdownNoteNodeData
     | PreviewNodeData
+    | LoadBatchNodeData
 
 // =============================================================================
 // React Flow Node/Edge Types
@@ -77,7 +87,7 @@ export type PipelineEdge = Edge
 // Node Type Registry
 // =============================================================================
 
-export type NodeTypeKey = 'operator' | 'load_image' | 'save_image' | 'markdown_note' | 'preview'
+export type NodeTypeKey = 'operator' | 'load_image' | 'load_batch' | 'save_image' | 'markdown_note' | 'preview'
 
 export interface NodeTypeDefinition {
     type: NodeTypeKey
@@ -94,6 +104,13 @@ export const NODE_TYPE_DEFINITIONS: Record<NodeTypeKey, NodeTypeDefinition> = {
         icon: 'image',
         category: 'utility',
         description: 'Load an image from the explorer',
+    },
+    load_batch: {
+        type: 'load_batch',
+        label: 'Load Batch',
+        icon: 'folder_open',
+        category: 'utility',
+        description: 'Load images from a folder for batch processing',
     },
     save_image: {
         type: 'save_image',

@@ -15,6 +15,16 @@ export function ComparisonEngine() {
     const [targetSource, setTargetSource] = useState<'A' | 'B' | null>(null)
     const [metrics, setMetrics] = useState<{ ssim: number; psnr: number; mse: number } | null>(null)
     const [loadingMetrics, setLoadingMetrics] = useState(false)
+    const [leftSidebarOpen, setLeftSidebarOpen] = useState(true)
+    const [rightSidebarOpen, setRightSidebarOpen] = useState(true)
+
+    // Auto-select first 2 images when at least 2 are available and none selected
+    useEffect(() => {
+        if (images.length >= 2 && !compareSourceA && !compareSourceB) {
+            setCompareSourceA(images[0].id)
+            setCompareSourceB(images[1].id)
+        }
+    }, [images, compareSourceA, compareSourceB, setCompareSourceA, setCompareSourceB])
 
     // Get current comparison images for metrics
     const imageA = images.find((img) => img.id === compareSourceA)
@@ -54,7 +64,7 @@ export function ComparisonEngine() {
         const fetchMetrics = async () => {
             setLoadingMetrics(true)
             try {
-                const res = await fetch(`http://localhost:8000/images/compare/${compareSourceA}/${compareSourceB}`)
+                const res = await fetch(`http://localhost:8001/images/compare/${compareSourceA}/${compareSourceB}`)
                 if (res.ok) {
                     const data = await res.json()
                     setMetrics(data)
@@ -79,151 +89,252 @@ export function ComparisonEngine() {
                 className="hidden"
             />
 
+            {/* Left Sidebar - Shared Explorer (collapsible) */}
+            {leftSidebarOpen && (
+                <aside className="w-64 bg-surface-dark border-r border-border-dark flex flex-col z-20 flex-shrink-0 relative">
+                    {/* Collapse Button */}
+                    <button
+                        onClick={() => setLeftSidebarOpen(false)}
+                        className="absolute -right-3 top-1/2 -translate-y-1/2 z-20 w-6 h-12 bg-surface-dark border border-border-dark rounded-r-md flex items-center justify-center text-text-secondary hover:text-white hover:bg-panel-dark cursor-pointer shadow-md"
+                        title="Collapse Explorer"
+                    >
+                        <span className="material-symbols-outlined text-[16px]">chevron_left</span>
+                    </button>
+
+                    <div className="flex-1 flex flex-col overflow-hidden">
+                        {/* Header */}
+                        <div className="h-10 px-4 flex items-center border-b border-border-dark">
+                            <h2 className="text-xs font-semibold uppercase tracking-wide text-text-secondary">Explorer</h2>
+                        </div>
+
+                        {/* Image list */}
+                        <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                            {images.length === 0 ? (
+                                <div className="p-3 text-xs text-text-secondary/50 text-center">
+                                    No images loaded.<br />Upload images in Single view.
+                                </div>
+                            ) : (
+                                images.map((img) => (
+                                    <div
+                                        key={img.id}
+                                        className={`group relative flex items-center gap-2 p-2 rounded cursor-pointer transition-colors ${compareSourceA === img.id ? 'bg-cyan-500/20 border border-cyan-500/50' :
+                                            compareSourceB === img.id ? 'bg-orange-500/20 border border-orange-500/50' :
+                                                'hover:bg-panel-dark'
+                                            }`}
+                                    >
+                                        {/* Thumbnail */}
+                                        <img
+                                            src={img.thumbnailUrl}
+                                            alt={img.name}
+                                            className="w-8 h-8 rounded object-cover bg-panel-dark"
+                                        />
+                                        {/* Name */}
+                                        <span className="text-xs text-white truncate flex-1">{img.name}</span>
+                                        {/* Assign buttons */}
+                                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button
+                                                onClick={() => setCompareSourceA(img.id)}
+                                                className={`px-1.5 py-0.5 text-[10px] font-bold rounded ${compareSourceA === img.id ? 'bg-cyan-500 text-white' : 'bg-panel-dark text-cyan-400 hover:bg-cyan-500/20'
+                                                    }`}
+                                            >
+                                                A
+                                            </button>
+                                            <button
+                                                onClick={() => setCompareSourceB(img.id)}
+                                                className={`px-1.5 py-0.5 text-[10px] font-bold rounded ${compareSourceB === img.id ? 'bg-orange-500 text-white' : 'bg-panel-dark text-orange-400 hover:bg-orange-500/20'
+                                                    }`}
+                                            >
+                                                B
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                </aside>
+            )}
+
+            {!leftSidebarOpen && (
+                <div className="w-10 border-r border-border-dark bg-surface-dark flex flex-col items-center py-4 gap-4 z-10 shrink-0">
+                    <button
+                        onClick={() => setLeftSidebarOpen(true)}
+                        className="p-2 hover:bg-panel-dark text-text-secondary hover:text-white rounded-sm transition-colors"
+                        title="Show Explorer"
+                    >
+                        <span className="material-symbols-outlined text-[20px]">dock_to_right</span>
+                    </button>
+                </div>
+            )}
+
             {/* Main Comparison Viewer */}
             <div className="flex-1 flex flex-col min-w-0">
                 <ComparisonViewer />
             </div>
 
-            {/* Right Sidebar (Metrics & Reports) */}
-            <aside className="w-80 bg-surface-dark border-l border-border-dark flex flex-col z-20 flex-shrink-0">
-                {/* Header */}
-                <div className="h-12 px-5 flex items-center justify-between border-b border-border-dark">
-                    <h2 className="text-xs font-semibold uppercase tracking-wide text-text-secondary">Similarity Report</h2>
-                    <button className="text-text-secondary hover:text-primary transition-colors">
-                        <span className="material-symbols-outlined text-[18px]">download</span>
+            {/* Right Sidebar (Metrics & Reports) - collapsible */}
+            {rightSidebarOpen && (
+                <aside className="w-80 bg-surface-dark border-l border-border-dark flex flex-col z-20 flex-shrink-0 relative">
+                    {/* Collapse Button */}
+                    <button
+                        onClick={() => setRightSidebarOpen(false)}
+                        className="absolute -left-3 top-1/2 -translate-y-1/2 z-20 w-6 h-12 bg-surface-dark border border-border-dark rounded-l-md flex items-center justify-center text-text-secondary hover:text-white hover:bg-panel-dark cursor-pointer shadow-md"
+                        title="Collapse Metrics"
+                    >
+                        <span className="material-symbols-outlined text-[16px]">chevron_right</span>
+                    </button>
+
+                    {/* Header */}
+                    <div className="h-10 px-5 flex items-center justify-between border-b border-border-dark">
+                        <h2 className="text-xs font-semibold uppercase tracking-wide text-text-secondary">Similarity Report</h2>
+                        <button className="text-text-secondary hover:text-primary transition-colors">
+                            <span className="material-symbols-outlined text-[18px]">download</span>
+                        </button>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                        {/* Status Card */}
+                        {imageA && imageB ? (
+                            <div className="flex items-center gap-3 p-3 rounded bg-emerald-500/10 border border-emerald-500/20">
+                                <span className="material-symbols-outlined text-emerald-500">check_circle</span>
+                                <div className="flex flex-col">
+                                    <span className="text-xs font-bold text-emerald-500 uppercase">Ready to Compare</span>
+                                    <span className="text-[10px] text-text-secondary">Both images selected</span>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="flex items-center gap-3 p-3 rounded bg-amber-500/10 border border-amber-500/20">
+                                <span className="material-symbols-outlined text-amber-500">info</span>
+                                <div className="flex flex-col">
+                                    <span className="text-xs font-bold text-amber-500 uppercase">Select Images</span>
+                                    <span className="text-[10px] text-text-secondary">Choose A and B from Explorer</span>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Comparison Info */}
+                        <div className="space-y-3">
+                            <h3 className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">Sources</h3>
+
+                            {/* Image A Info */}
+                            <div
+                                className="p-3 rounded bg-panel-dark border border-border-dark cursor-pointer hover:border-cyan-500/50 hover:bg-cyan-500/5 transition-colors group relative"
+                                onClick={() => handleSourceClick('A')}
+                            >
+                                <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-2 h-2 rounded-full bg-cyan-500"></div>
+                                        <span className="text-xs font-medium text-cyan-400">Source A</span>
+                                    </div>
+                                    <span className="material-symbols-outlined text-[16px] text-text-secondary opacity-0 group-hover:opacity-100 transition-opacity">upload</span>
+                                </div>
+                                {imageA ? (
+                                    <div className="space-y-1 text-xs">
+                                        <p className="font-mono text-white truncate">{imageA.name}</p>
+                                        <p className="text-text-secondary">
+                                            {imageA.metadata.width} × {imageA.metadata.height} • {imageA.metadata.bitDepth}
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <p className="text-xs text-text-secondary/50">Click to select/upload...</p>
+                                )}
+                            </div>
+
+                            {/* Image B Info */}
+                            <div
+                                className="p-3 rounded bg-panel-dark border border-border-dark cursor-pointer hover:border-orange-500/50 hover:bg-orange-500/5 transition-colors group relative"
+                                onClick={() => handleSourceClick('B')}
+                            >
+                                <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-2 h-2 rounded-full bg-orange-500"></div>
+                                        <span className="text-xs font-medium text-orange-400">Source B</span>
+                                    </div>
+                                    <span className="material-symbols-outlined text-[16px] text-text-secondary opacity-0 group-hover:opacity-100 transition-opacity">upload</span>
+                                </div>
+                                {imageB ? (
+                                    <div className="space-y-1 text-xs">
+                                        <p className="font-mono text-white truncate">{imageB.name}</p>
+                                        <p className="text-text-secondary">
+                                            {imageB.metadata.width} × {imageB.metadata.height} • {imageB.metadata.bitDepth}
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <p className="text-xs text-text-secondary/50">Click to select/upload...</p>
+                                )}
+                            </div>
+                        </div>
+
+                        {imageA && imageB && (
+                            <div className="space-y-3 pt-3 border-t border-border-dark">
+                                <h3 className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">Metrics</h3>
+
+                                {loadingMetrics ? (
+                                    <div className="p-4 text-center text-xs text-text-secondary animate-pulse">
+                                        Calculating metrics...
+                                    </div>
+                                ) : metrics ? (
+                                    <>
+                                        <MetricCard
+                                            label="Structural Similarity (SSIM)"
+                                            value={metrics.ssim.toFixed(4)}
+                                            progress={metrics.ssim * 100}
+                                            color={metrics.ssim > 0.9 ? "emerald" : metrics.ssim > 0.7 ? "amber" : "slate"}
+                                        />
+                                        <MetricCard
+                                            label="Peak Signal-to-Noise (PSNR)"
+                                            value={`${metrics.psnr.toFixed(2)} dB`}
+                                            progress={Math.min((metrics.psnr / 60) * 100, 100)} // Approx scale for PSNR
+                                            color={metrics.psnr > 40 ? "emerald" : metrics.psnr > 30 ? "amber" : "slate"}
+                                        />
+                                        <MetricCard
+                                            label="Mean Squared Error (MSE)"
+                                            value={metrics.mse.toFixed(2)}
+                                            progress={0} // MSE is unbounded, difficult to show progress
+                                            color="slate"
+                                        />
+                                    </>
+                                ) : (
+                                    <div className="text-center text-xs text-text-secondary">
+                                        Unable to calculate metrics
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Controls Guide */}
+                        <div className="space-y-2 pt-3 border-t border-border-dark">
+                            <h3 className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">Controls</h3>
+                            <div className="space-y-1.5 text-[10px] text-text-secondary">
+                                <div className="flex items-center gap-2">
+                                    <kbd className="px-1.5 py-0.5 bg-panel-dark border border-border-dark rounded text-[9px]">Scroll</kbd>
+                                    <span>Zoom in/out</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <kbd className="px-1.5 py-0.5 bg-panel-dark border border-border-dark rounded text-[9px]">Drag</kbd>
+                                    <span>Pan image</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <kbd className="px-1.5 py-0.5 bg-panel-dark border border-border-dark rounded text-[9px]">Handle</kbd>
+                                    <span>Swipe reveal (Swipe mode)</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </aside>
+            )}
+
+            {!rightSidebarOpen && (
+                <div className="w-10 border-l border-border-dark bg-surface-dark flex flex-col items-center py-4 gap-4 z-10 shrink-0">
+                    <button
+                        onClick={() => setRightSidebarOpen(true)}
+                        className="p-2 hover:bg-panel-dark text-text-secondary hover:text-white rounded-sm transition-colors"
+                        title="Show Metrics"
+                    >
+                        <span className="material-symbols-outlined text-[20px]">dock_to_left</span>
                     </button>
                 </div>
-
-                <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                    {/* Status Card */}
-                    {imageA && imageB ? (
-                        <div className="flex items-center gap-3 p-3 rounded bg-emerald-500/10 border border-emerald-500/20">
-                            <span className="material-symbols-outlined text-emerald-500">check_circle</span>
-                            <div className="flex flex-col">
-                                <span className="text-xs font-bold text-emerald-500 uppercase">Ready to Compare</span>
-                                <span className="text-[10px] text-text-secondary">Both images selected</span>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="flex items-center gap-3 p-3 rounded bg-amber-500/10 border border-amber-500/20">
-                            <span className="material-symbols-outlined text-amber-500">info</span>
-                            <div className="flex flex-col">
-                                <span className="text-xs font-bold text-amber-500 uppercase">Select Images</span>
-                                <span className="text-[10px] text-text-secondary">Choose A and B above</span>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Comparison Info */}
-                    <div className="space-y-3">
-                        <h3 className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">Sources</h3>
-
-                        {/* Image A Info */}
-                        <div
-                            className="p-3 rounded bg-panel-dark border border-border-dark cursor-pointer hover:border-cyan-500/50 hover:bg-cyan-500/5 transition-colors group relative"
-                            onClick={() => handleSourceClick('A')}
-                        >
-                            <div className="flex items-center justify-between mb-2">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-2 h-2 rounded-full bg-cyan-500"></div>
-                                    <span className="text-xs font-medium text-cyan-400">Source A</span>
-                                </div>
-                                <span className="material-symbols-outlined text-[16px] text-text-secondary opacity-0 group-hover:opacity-100 transition-opacity">upload</span>
-                            </div>
-                            {imageA ? (
-                                <div className="space-y-1 text-xs">
-                                    <p className="font-mono text-white truncate">{imageA.name}</p>
-                                    <p className="text-text-secondary">
-                                        {imageA.metadata.width} × {imageA.metadata.height} • {imageA.metadata.bitDepth}
-                                    </p>
-                                </div>
-                            ) : (
-                                <p className="text-xs text-text-secondary/50">Click to select/upload...</p>
-                            )}
-                        </div>
-
-                        {/* Image B Info */}
-                        <div
-                            className="p-3 rounded bg-panel-dark border border-border-dark cursor-pointer hover:border-orange-500/50 hover:bg-orange-500/5 transition-colors group relative"
-                            onClick={() => handleSourceClick('B')}
-                        >
-                            <div className="flex items-center justify-between mb-2">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-2 h-2 rounded-full bg-orange-500"></div>
-                                    <span className="text-xs font-medium text-orange-400">Source B</span>
-                                </div>
-                                <span className="material-symbols-outlined text-[16px] text-text-secondary opacity-0 group-hover:opacity-100 transition-opacity">upload</span>
-                            </div>
-                            {imageB ? (
-                                <div className="space-y-1 text-xs">
-                                    <p className="font-mono text-white truncate">{imageB.name}</p>
-                                    <p className="text-text-secondary">
-                                        {imageB.metadata.width} × {imageB.metadata.height} • {imageB.metadata.bitDepth}
-                                    </p>
-                                </div>
-                            ) : (
-                                <p className="text-xs text-text-secondary/50">Click to select/upload...</p>
-                            )}
-                        </div>
-                    </div>
-
-                    {imageA && imageB && (
-                        <div className="space-y-3 pt-3 border-t border-border-dark">
-                            <h3 className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">Metrics</h3>
-
-                            {loadingMetrics ? (
-                                <div className="p-4 text-center text-xs text-text-secondary animate-pulse">
-                                    Calculating metrics...
-                                </div>
-                            ) : metrics ? (
-                                <>
-                                    <MetricCard
-                                        label="Structural Similarity (SSIM)"
-                                        value={metrics.ssim.toFixed(4)}
-                                        progress={metrics.ssim * 100}
-                                        color={metrics.ssim > 0.9 ? "emerald" : metrics.ssim > 0.7 ? "amber" : "slate"}
-                                    />
-                                    <MetricCard
-                                        label="Peak Signal-to-Noise (PSNR)"
-                                        value={`${metrics.psnr.toFixed(2)} dB`}
-                                        progress={Math.min((metrics.psnr / 60) * 100, 100)} // Approx scale for PSNR
-                                        color={metrics.psnr > 40 ? "emerald" : metrics.psnr > 30 ? "amber" : "slate"}
-                                    />
-                                    <MetricCard
-                                        label="Mean Squared Error (MSE)"
-                                        value={metrics.mse.toFixed(2)}
-                                        progress={0} // MSE is unbounded, difficult to show progress
-                                        color="slate"
-                                    />
-                                </>
-                            ) : (
-                                <div className="text-center text-xs text-text-secondary">
-                                    Unable to calculate metrics
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {/* Controls Guide */}
-                    <div className="space-y-2 pt-3 border-t border-border-dark">
-                        <h3 className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">Controls</h3>
-                        <div className="space-y-1.5 text-[10px] text-text-secondary">
-                            <div className="flex items-center gap-2">
-                                <kbd className="px-1.5 py-0.5 bg-panel-dark border border-border-dark rounded text-[9px]">Scroll</kbd>
-                                <span>Zoom in/out</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <kbd className="px-1.5 py-0.5 bg-panel-dark border border-border-dark rounded text-[9px]">Drag</kbd>
-                                <span>Pan image</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <kbd className="px-1.5 py-0.5 bg-panel-dark border border-border-dark rounded text-[9px]">Handle</kbd>
-                                <span>Swipe reveal (Swipe mode)</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </aside>
+            )}
         </>
     )
 }

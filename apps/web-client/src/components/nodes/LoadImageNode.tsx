@@ -26,8 +26,12 @@ function LoadImageNodeComponent({ id, data, selected }: LoadImageNodeProps) {
         })
     }
 
+    const handleToggleCollapse = () => {
+        updateNodeData(id, { collapsed: !data.collapsed })
+    }
+
     return (
-        <BaseNode id={id} data={data} selected={selected} headerColor="bg-emerald-600">
+        <BaseNode id={id} data={data} selected={selected} headerColor="bg-emerald-600" onToggleCollapse={handleToggleCollapse}>
             <div className="space-y-2">
                 {/* Image Selector */}
                 <select

@@ -18,6 +18,7 @@ import {
     ReactFlowProvider,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
+// Note: The above CSS import may need bundler configuration if TypeScript errors appear
 
 import { useAppStore } from '@/store/appStore'
 import { usePluginsByCategory } from '@/hooks/usePlugins'
@@ -44,6 +45,12 @@ function PipelineEditorContent() {
         setPipelineName,
         setNodes,
         setEdges,
+        isPipelineExecuting,
+        pipelineExecutionProgress,
+        pipelineExecutionStatus,
+        startPipelineExecution,
+        updatePipelineProgress,
+        stopPipelineExecution,
     } = useAppStore()
 
     const { categories } = usePluginsByCategory()
@@ -56,12 +63,33 @@ function PipelineEditorContent() {
     const [contextMenuPosition, setContextMenuPosition] = useState<ContextMenuPosition | null>(null)
     const [contextMenuItems, setContextMenuItems] = useState<ContextMenuItem[]>([])
     const [addNodeMenuPosition, setAddNodeMenuPosition] = useState<ContextMenuPosition | null>(null)
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [rightClickNodeId, setRightClickNodeId] = useState<string | null>(null)
 
     // Rename dialog state
     const [renameDialogOpen, setRenameDialogOpen] = useState(false)
     const [renameNodeId, setRenameNodeId] = useState<string | null>(null)
     const [renameValue, setRenameValue] = useState('')
+
+    // Save Workflow dialog state
+    const [saveWorkflowDialogOpen, setSaveWorkflowDialogOpen] = useState(false)
+    const [saveWorkflowName, setSaveWorkflowName] = useState('')
+
+    // Node color picker state
+    const [colorPickerNodeId, setColorPickerNodeId] = useState<string | null>(null)
+    const [colorPickerOpen, setColorPickerOpen] = useState(false)
+    const NODE_COLORS = [
+        { name: 'Default', value: '' },
+        { name: 'Red', value: 'bg-red-600' },
+        { name: 'Orange', value: 'bg-orange-600' },
+        { name: 'Amber', value: 'bg-amber-600' },
+        { name: 'Green', value: 'bg-emerald-600' },
+        { name: 'Teal', value: 'bg-teal-600' },
+        { name: 'Blue', value: 'bg-blue-600' },
+        { name: 'Indigo', value: 'bg-indigo-600' },
+        { name: 'Purple', value: 'bg-purple-600' },
+        { name: 'Pink', value: 'bg-pink-600' },
+    ]
 
     // Get position in flow from screen coordinates
     const getFlowPosition = useCallback((clientX: number, clientY: number) => {
@@ -200,6 +228,37 @@ function PipelineEditorContent() {
         addNode(node)
     }, [addNode, getNewNodePosition])
 
+    // Execute pipeline with progress tracking
+    const handleExecutePipeline = useCallback(async () => {
+        if (isPipelineExecuting) {
+            stopPipelineExecution()
+            return
+        }
+
+        if (pipelineNodes.length === 0) return
+
+        startPipelineExecution()
+
+        // Simulate pipeline execution - in real implementation, this would call backend
+        const totalNodes = pipelineNodes.length
+        for (let i = 0; i < totalNodes; i++) {
+            const node = pipelineNodes[i]
+            const progress = ((i + 1) / totalNodes) * 100
+            updatePipelineProgress(
+                progress,
+                node.id,
+                `Processing: ${(node.data as { label?: string }).label || 'Node ' + (i + 1)}`
+            )
+
+            // Simulate processing time (in real implementation, this would be actual processing)
+            await new Promise(resolve => setTimeout(resolve, 800))
+        }
+
+        updatePipelineProgress(100, null, 'Pipeline completed!')
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        stopPipelineExecution()
+    }, [isPipelineExecuting, pipelineNodes, startPipelineExecution, updatePipelineProgress, stopPipelineExecution])
+
     // Handle right-click on canvas (not on node)
     const handlePaneContextMenu = useCallback((event: React.MouseEvent) => {
         event.preventDefault()
@@ -215,12 +274,9 @@ function PipelineEditorContent() {
             },
             { label: '', action: () => { }, divider: true },
             {
-                label: 'Execute Pipeline',
-                icon: 'play_arrow',
-                action: () => {
-                    // TODO: Implement pipeline execution
-                    console.log('Execute pipeline')
-                },
+                label: isPipelineExecuting ? 'Stop Pipeline' : 'Execute Pipeline',
+                icon: isPipelineExecuting ? 'stop' : 'play_arrow',
+                action: handleExecutePipeline,
                 disabled: pipelineNodes.length === 0,
             },
             { label: '', action: () => { }, divider: true },
@@ -265,19 +321,27 @@ function PipelineEditorContent() {
                 icon: 'edit',
                 action: () => {
                     setRenameNodeId(node.id)
-                    setRenameValue(node.data.label)
+                    setRenameValue((node.data.label as string) || '')
                     setRenameDialogOpen(true)
+                },
+            },
+            {
+                label: 'Set Node Color',
+                icon: 'palette',
+                action: () => {
+                    setColorPickerNodeId(node.id)
+                    setColorPickerOpen(true)
                 },
             },
             {
                 label: 'Duplicate Node',
                 icon: 'content_copy',
                 action: () => {
-                    const newNode: PipelineNode = {
-                        ...node,
+                    const newNode = {
+                        ...(node as PipelineNode),
                         id: crypto.randomUUID(),
                         position: { x: node.position.x + 50, y: node.position.y + 50 },
-                    }
+                    } as PipelineNode
                     addNode(newNode)
                 },
             },
@@ -301,6 +365,12 @@ function PipelineEditorContent() {
         setRightClickNodeId(null)
     }, [])
 
+    // Close only the main context menu (keeps AddNodeSubmenu open if trigger)
+    const closeMainContextMenu = useCallback(() => {
+        setContextMenuPosition(null)
+        setRightClickNodeId(null)
+    }, [])
+
     // Handle rename confirmation
     const handleRenameConfirm = useCallback(() => {
         if (renameNodeId && renameValue.trim()) {
@@ -311,10 +381,16 @@ function PipelineEditorContent() {
         setRenameValue('')
     }, [renameNodeId, renameValue, updateNodeData])
 
-    // Save workflow as JSON
+    // Open Save Workflow dialog
     const handleSaveWorkflow = useCallback(() => {
+        setSaveWorkflowName(pipelineName || 'Untitled Workflow')
+        setSaveWorkflowDialogOpen(true)
+    }, [pipelineName])
+
+    // Confirm save workflow
+    const confirmSaveWorkflow = useCallback(() => {
         const workflow = {
-            name: pipelineName || 'Untitled Workflow',
+            name: saveWorkflowName || 'Untitled Workflow',
             nodes: pipelineNodes,
             edges: pipelineEdges,
         }
@@ -322,10 +398,12 @@ function PipelineEditorContent() {
         const url = URL.createObjectURL(blob)
         const a = document.createElement('a')
         a.href = url
-        a.download = `${pipelineName || 'workflow'}.json`
+        a.download = `${saveWorkflowName || 'workflow'}.json`
         a.click()
         URL.revokeObjectURL(url)
-    }, [pipelineName, pipelineNodes, pipelineEdges])
+        setSaveWorkflowDialogOpen(false)
+        setPipelineName(saveWorkflowName)
+    }, [saveWorkflowName, pipelineNodes, pipelineEdges, setPipelineName])
 
     // Load workflow from JSON
     const handleLoadWorkflow = useCallback(() => {
@@ -383,8 +461,8 @@ function PipelineEditorContent() {
                     <button
                         onClick={() => setIsPaletteOpen(!isPaletteOpen)}
                         className={`flex items-center gap-2 px-4 py-2 rounded text-sm font-semibold transition-colors ${isPaletteOpen
-                                ? 'bg-primary text-white'
-                                : 'bg-primary/20 text-primary hover:bg-primary/30'
+                            ? 'bg-primary text-white'
+                            : 'bg-primary/20 text-primary hover:bg-primary/30'
                             }`}
                     >
                         <span className="material-symbols-outlined text-[20px]">add_circle</span>
@@ -418,16 +496,39 @@ function PipelineEditorContent() {
 
                     {/* Run Button */}
                     <button
+                        onClick={handleExecutePipeline}
                         disabled={pipelineNodes.length === 0}
-                        className="group flex items-center gap-2 bg-white text-black px-5 py-2 rounded text-sm font-bold hover:bg-zinc-200 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className={`group flex items-center gap-2 px-5 py-2 rounded text-sm font-bold transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${isPipelineExecuting
+                            ? 'bg-red-500 text-white hover:bg-red-600'
+                            : 'bg-white text-black hover:bg-zinc-200'
+                            }`}
                     >
-                        <span className="material-symbols-outlined text-[20px] group-hover:rotate-180 transition-transform duration-500">
-                            play_arrow
+                        <span className={`material-symbols-outlined text-[20px] transition-transform duration-500 ${isPipelineExecuting ? 'animate-spin' : 'group-hover:rotate-180'}`}>
+                            {isPipelineExecuting ? 'stop' : 'play_arrow'}
                         </span>
-                        <span>Execute</span>
+                        <span>{isPipelineExecuting ? 'Stop' : 'Execute'}</span>
                     </button>
                 </div>
             </div>
+
+            {/* Pipeline Execution Progress Bar */}
+            {isPipelineExecuting && (
+                <div className="px-4 py-2 bg-panel-dark border-b border-border-dark">
+                    <div className="flex items-center gap-3">
+                        <span className="material-symbols-outlined text-primary animate-spin text-[18px]">progress_activity</span>
+                        <div className="flex-1">
+                            <div className="text-xs text-white mb-1">{pipelineExecutionStatus}</div>
+                            <div className="w-full bg-background-dark rounded-full h-1.5 overflow-hidden">
+                                <div
+                                    className="bg-primary h-full rounded-full transition-all duration-300"
+                                    style={{ width: `${pipelineExecutionProgress}%` }}
+                                />
+                            </div>
+                        </div>
+                        <span className="text-xs text-text-secondary font-mono">{Math.round(pipelineExecutionProgress)}%</span>
+                    </div>
+                </div>
+            )}
 
             {/* React Flow Canvas */}
             <div className="flex-1 relative" ref={reactFlowWrapper}>
@@ -514,7 +615,7 @@ function PipelineEditorContent() {
                 <ContextMenu
                     position={contextMenuPosition}
                     items={contextMenuItems}
-                    onClose={closeContextMenus}
+                    onClose={closeMainContextMenu}
                 />
 
                 {/* Add Node Submenu */}
@@ -563,6 +664,77 @@ function PipelineEditorContent() {
                                 className="px-4 py-2 text-sm font-semibold bg-primary text-white rounded hover:bg-blue-600 transition-colors"
                             >
                                 Rename
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Save Workflow Dialog */}
+            {saveWorkflowDialogOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+                    <div className="bg-surface-dark border border-border-dark rounded-lg p-6 w-96 shadow-2xl">
+                        <h3 className="text-lg font-semibold text-white mb-2">Save Workflow</h3>
+                        <p className="text-sm text-text-secondary mb-4">Enter a name for your workflow. It will be downloaded as a JSON file.</p>
+                        <input
+                            type="text"
+                            value={saveWorkflowName}
+                            onChange={(e) => setSaveWorkflowName(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') confirmSaveWorkflow()
+                                if (e.key === 'Escape') setSaveWorkflowDialogOpen(false)
+                            }}
+                            autoFocus
+                            placeholder="Workflow name..."
+                            className="w-full bg-background-dark border border-border-dark rounded px-3 py-2 text-white outline-none focus:border-primary"
+                        />
+                        <div className="flex justify-end gap-2 mt-4">
+                            <button
+                                onClick={() => setSaveWorkflowDialogOpen(false)}
+                                className="px-4 py-2 text-sm text-text-secondary hover:text-white transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={confirmSaveWorkflow}
+                                className="px-4 py-2 text-sm font-semibold bg-primary text-white rounded hover:bg-blue-600 transition-colors"
+                            >
+                                <span className="material-symbols-outlined text-[16px] mr-1 align-middle">save</span>
+                                Save
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Node Color Picker Dialog */}
+            {colorPickerOpen && colorPickerNodeId && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+                    <div className="bg-surface-dark border border-border-dark rounded-lg p-6 w-80 shadow-2xl">
+                        <h3 className="text-lg font-semibold text-white mb-4">Set Node Color</h3>
+                        <div className="grid grid-cols-5 gap-2 mb-4">
+                            {NODE_COLORS.map((color) => (
+                                <button
+                                    key={color.name}
+                                    onClick={() => {
+                                        updateNodeData(colorPickerNodeId, { headerColor: color.value || undefined })
+                                        setColorPickerOpen(false)
+                                        setColorPickerNodeId(null)
+                                    }}
+                                    className={`w-10 h-10 rounded-lg border-2 border-border-dark hover:border-white transition-colors ${color.value || 'bg-primary'}`}
+                                    title={color.name}
+                                />
+                            ))}
+                        </div>
+                        <div className="flex justify-end">
+                            <button
+                                onClick={() => {
+                                    setColorPickerOpen(false)
+                                    setColorPickerNodeId(null)
+                                }}
+                                className="px-4 py-2 text-sm text-text-secondary hover:text-white transition-colors"
+                            >
+                                Cancel
                             </button>
                         </div>
                     </div>

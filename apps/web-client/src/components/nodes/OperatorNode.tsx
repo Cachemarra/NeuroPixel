@@ -26,9 +26,9 @@ function OperatorNodeComponent({ id, data, selected }: OperatorNodeProps) {
 
     // Render parameter control based on type
     const renderParamControl = (param: PluginParam) => {
-        const value = params[param.name] ?? ('default' in param ? param.default : undefined)
 
         if (param.type === 'int' || param.type === 'float') {
+            const currentValue = Number(params[param.name] ?? param.default ?? 0)
             return (
                 <div key={param.name} className="space-y-1">
                     <div className="flex justify-between items-center">
@@ -36,7 +36,7 @@ function OperatorNodeComponent({ id, data, selected }: OperatorNodeProps) {
                             {param.label}
                         </label>
                         <span className="text-[10px] font-mono text-primary bg-primary/10 px-1 rounded">
-                            {param.type === 'float' ? Number(value ?? 0).toFixed(2) : String(value ?? 0)}
+                            {param.type === 'float' ? Number(currentValue).toFixed(2) : String(currentValue)}
                         </span>
                     </div>
                     <input
@@ -44,31 +44,33 @@ function OperatorNodeComponent({ id, data, selected }: OperatorNodeProps) {
                         min={param.min}
                         max={param.max}
                         step={param.step ?? (param.type === 'float' ? 0.1 : 1)}
-                        value={value as number}
-                        onChange={(e) =>
-                            handleParamChange(
-                                param.name,
-                                param.type === 'float'
-                                    ? parseFloat(e.target.value)
-                                    : parseInt(e.target.value)
-                            )
-                        }
-                        className="w-full h-1"
+                        value={currentValue}
+                        onChange={(e) => {
+                            e.stopPropagation()
+                            const newValue = param.type === 'float'
+                                ? parseFloat(e.target.value)
+                                : parseInt(e.target.value, 10)
+                            handleParamChange(param.name, newValue)
+                        }}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        className="w-full h-1 nodrag nopan"
                     />
                 </div>
             )
         }
 
         if (param.type === 'select') {
+            const currentValue = (params[param.name] ?? param.default ?? '') as string
             return (
                 <div key={param.name} className="space-y-1">
                     <label className="text-[10px] text-text-secondary">
                         {param.label}
                     </label>
                     <select
-                        value={value as string}
+                        value={currentValue}
                         onChange={(e) => handleParamChange(param.name, e.target.value)}
-                        className="w-full bg-background-dark border border-border-dark rounded px-2 py-1 text-[11px] text-white"
+                        onMouseDown={(e) => e.stopPropagation()}
+                        className="w-full bg-background-dark border border-border-dark rounded px-2 py-1 text-[11px] text-white nodrag"
                     >
                         {param.options?.map((opt: SelectOption) => (
                             <option key={opt.value} value={opt.value}>
@@ -81,6 +83,7 @@ function OperatorNodeComponent({ id, data, selected }: OperatorNodeProps) {
         }
 
         if (param.type === 'bool') {
+            const currentValue = (params[param.name] ?? param.default ?? false) as boolean
             return (
                 <div key={param.name} className="flex items-center justify-between">
                     <label className="text-[10px] text-text-secondary">
@@ -88,9 +91,10 @@ function OperatorNodeComponent({ id, data, selected }: OperatorNodeProps) {
                     </label>
                     <input
                         type="checkbox"
-                        checked={value as boolean}
+                        checked={currentValue}
                         onChange={(e) => handleParamChange(param.name, e.target.checked)}
-                        className="accent-primary w-4 h-4"
+                        onMouseDown={(e) => e.stopPropagation()}
+                        className="accent-primary w-4 h-4 nodrag"
                     />
                 </div>
             )
@@ -99,8 +103,12 @@ function OperatorNodeComponent({ id, data, selected }: OperatorNodeProps) {
         return null
     }
 
+    const handleToggleCollapse = () => {
+        updateNodeData(id, { collapsed: !data.collapsed })
+    }
+
     return (
-        <BaseNode id={id} data={data} selected={selected} headerColor="bg-indigo-600">
+        <BaseNode id={id} data={data} selected={selected} headerColor="bg-indigo-600" onToggleCollapse={handleToggleCollapse}>
             <div className="space-y-2">
                 {/* Plugin Description */}
                 {pluginSpec?.description && (

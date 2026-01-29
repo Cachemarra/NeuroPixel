@@ -51,13 +51,22 @@ export function PluginController({ spec, onClose }: PluginControllerProps) {
     const handleApply = useCallback(() => {
         if (!activeImageId) return
 
-        // Find the current image to check if it's a result
+        // Find the current image
         const currentImage = images.find(img => img.id === activeImageId)
-        // Always use the original source to avoid recursion/stacking
-        const inputImageId = currentImage?.sourceId || activeImageId
+        if (!currentImage) return
 
+        // Push current state to history before applying new filter (enables undo)
+        const { pushToHistory } = useAppStore.getState()
+        pushToHistory({
+            imageId: currentImage.id,
+            url: currentImage.url,
+            thumbnailUrl: currentImage.thumbnailUrl,
+            name: currentImage.name,
+        })
+
+        // Use current active image (enables stacking edits)
         runPlugin({
-            image_id: inputImageId,
+            image_id: activeImageId,
             plugin_name: spec.name,
             params,
         })

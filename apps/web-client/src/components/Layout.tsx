@@ -3,7 +3,7 @@ import { useBackendHealth } from '@/hooks/useBackendHealth'
 import { useAppStore, ViewMode } from '@/store/appStore'
 import { AppMenuBar } from '@/components/AppMenuBar'
 
-const API_BASE = 'http://localhost:8000'
+const API_BASE = 'http://localhost:8001'
 
 interface ComputeDevice {
     id: string

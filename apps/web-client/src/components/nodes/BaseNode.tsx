@@ -14,6 +14,7 @@ interface BaseNodeProps {
         icon?: string
         inputs: NodeInput[]
         outputs: NodeOutput[]
+        collapsed?: boolean
         [key: string]: unknown
     }
     selected?: boolean
@@ -23,6 +24,7 @@ interface BaseNodeProps {
     resizable?: boolean
     minWidth?: number
     minHeight?: number
+    onToggleCollapse?: () => void
 }
 
 // Socket type to color mapping
@@ -43,13 +45,17 @@ function BaseNodeComponent({
     resizable = true,
     minWidth = 200,
     minHeight = 100,
+    onToggleCollapse,
 }: BaseNodeProps) {
-    const { label, icon, inputs, outputs } = data
+    const { label, icon, inputs, outputs, collapsed = false, headerColor: dataHeaderColor } = data
+    // Use data.headerColor if set, otherwise use prop
+    const effectiveHeaderColor = (dataHeaderColor as string) || headerColor
+
 
     return (
         <>
             {/* Resizer handles */}
-            {resizable && (
+            {resizable && !collapsed && (
                 <NodeResizer
                     minWidth={minWidth}
                     minHeight={minHeight}
@@ -61,7 +67,7 @@ function BaseNodeComponent({
 
             <div
                 className={`
-                    min-w-[200px] w-full h-full
+                    min-w-[200px] ${collapsed ? 'w-[200px]' : 'w-full h-full'}
                     bg-surface-dark border rounded-lg
                     transition-all duration-150 flex flex-col
                     ${selected
@@ -74,8 +80,8 @@ function BaseNodeComponent({
                 {showHeader && (
                     <div className={`
                         flex items-center gap-2 px-3 py-2 
-                        rounded-t-lg border-b border-border-dark
-                        ${headerColor}
+                        ${collapsed ? 'rounded-lg' : 'rounded-t-lg'} border-b border-border-dark
+                        ${effectiveHeaderColor}
                     `}>
                         {icon && (
                             <span className="material-symbols-outlined text-white/90 text-[18px]">
@@ -85,10 +91,27 @@ function BaseNodeComponent({
                         <span className="text-sm font-semibold text-white truncate flex-1">
                             {label}
                         </span>
+                        {/* Collapse Toggle Button */}
+                        {onToggleCollapse && (
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation()
+                                    onToggleCollapse()
+                                }}
+                                className="p-0.5 hover:bg-white/20 rounded transition-colors"
+                                title={collapsed ? 'Expand node' : 'Collapse node'}
+                            >
+                                <span
+                                    className={`material-symbols-outlined text-white/70 text-[16px] transition-transform duration-200 ${collapsed ? '' : 'rotate-180'}`}
+                                >
+                                    expand_less
+                                </span>
+                            </button>
+                        )}
                     </div>
                 )}
 
-                {/* Input Handles */}
+                {/* Input Handles - Always visible */}
                 {inputs.map((input: NodeInput, index: number) => (
                     <Handle
                         key={`input-${input.name}`}
@@ -96,7 +119,7 @@ function BaseNodeComponent({
                         position={Position.Left}
                         id={input.name}
                         style={{
-                            top: showHeader ? 52 + index * 28 : 20 + index * 28,
+                            top: collapsed ? 20 : (showHeader ? 52 + index * 28 : 20 + index * 28),
                             background: SOCKET_COLORS[input.type],
                             width: 12,
                             height: 12,
@@ -106,7 +129,7 @@ function BaseNodeComponent({
                     />
                 ))}
 
-                {/* Output Handles */}
+                {/* Output Handles - Always visible */}
                 {outputs.map((output: NodeOutput, index: number) => (
                     <Handle
                         key={`output-${output.name}`}
@@ -114,7 +137,7 @@ function BaseNodeComponent({
                         position={Position.Right}
                         id={output.name}
                         style={{
-                            top: showHeader ? 52 + index * 28 : 20 + index * 28,
+                            top: collapsed ? 20 : (showHeader ? 52 + index * 28 : 20 + index * 28),
                             background: SOCKET_COLORS[output.type],
                             width: 12,
                             height: 12,
@@ -124,37 +147,39 @@ function BaseNodeComponent({
                     />
                 ))}
 
-                {/* Content Area */}
-                <div className="p-3 flex-1 overflow-auto">
-                    {/* Socket Labels */}
-                    <div className="flex justify-between text-[10px] text-text-secondary mb-2">
-                        <div className="space-y-1">
-                            {inputs.map((input: NodeInput) => (
-                                <div key={input.name} className="flex items-center gap-1">
-                                    <div
-                                        className="w-2 h-2 rounded-full"
-                                        style={{ background: SOCKET_COLORS[input.type] }}
-                                    />
-                                    <span>{input.label}</span>
-                                </div>
-                            ))}
+                {/* Content Area - Hidden when collapsed */}
+                {!collapsed && (
+                    <div className="p-3 flex-1 overflow-auto">
+                        {/* Socket Labels */}
+                        <div className="flex justify-between text-[10px] text-text-secondary mb-2">
+                            <div className="space-y-1">
+                                {inputs.map((input: NodeInput) => (
+                                    <div key={input.name} className="flex items-center gap-1">
+                                        <div
+                                            className="w-2 h-2 rounded-full"
+                                            style={{ background: SOCKET_COLORS[input.type] }}
+                                        />
+                                        <span>{input.label}</span>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="space-y-1 text-right">
+                                {outputs.map((output: NodeOutput) => (
+                                    <div key={output.name} className="flex items-center gap-1 justify-end">
+                                        <span>{output.label}</span>
+                                        <div
+                                            className="w-2 h-2 rounded-full"
+                                            style={{ background: SOCKET_COLORS[output.type] }}
+                                        />
+                                    </div>
+                                ))}
+                            </div>
                         </div>
-                        <div className="space-y-1 text-right">
-                            {outputs.map((output: NodeOutput) => (
-                                <div key={output.name} className="flex items-center gap-1 justify-end">
-                                    <span>{output.label}</span>
-                                    <div
-                                        className="w-2 h-2 rounded-full"
-                                        style={{ background: SOCKET_COLORS[output.type] }}
-                                    />
-                                </div>
-                            ))}
-                        </div>
-                    </div>
 
-                    {/* Node-specific content */}
-                    {children}
-                </div>
+                        {/* Node-specific content */}
+                        {children}
+                    </div>
+                )}
             </div>
         </>
     )

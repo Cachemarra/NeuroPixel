@@ -4,6 +4,7 @@
  */
 
 import { LoadImageNode } from './LoadImageNode'
+import { LoadBatchNode } from './LoadBatchNode'
 import { SaveImageNode } from './SaveImageNode'
 import { PreviewNode } from './PreviewNode'
 import { MarkdownNoteNode } from './MarkdownNoteNode'
@@ -12,6 +13,7 @@ import { OperatorNode } from './OperatorNode'
 // Export individual node components
 export { BaseNode } from './BaseNode'
 export { LoadImageNode } from './LoadImageNode'
+export { LoadBatchNode } from './LoadBatchNode'
 export { SaveImageNode } from './SaveImageNode'
 export { PreviewNode } from './PreviewNode'
 export { MarkdownNoteNode } from './MarkdownNoteNode'
@@ -22,6 +24,7 @@ export { OperatorNode } from './OperatorNode'
 // and our custom node components have specific prop types
 export const nodeTypes = {
     load_image: LoadImageNode,
+    load_batch: LoadBatchNode,
     save_image: SaveImageNode,
     preview: PreviewNode,
     markdown_note: MarkdownNoteNode,

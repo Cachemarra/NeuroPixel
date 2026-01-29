@@ -46,6 +46,14 @@ export interface BatchProgress {
     elapsedSeconds: number
 }
 
+// History entry for undo/redo
+export interface HistoryEntry {
+    imageId: string
+    url: string
+    thumbnailUrl: string
+    name: string
+}
+
 interface AppState {
     // Image management
     images: ImageData[]
@@ -59,6 +67,16 @@ interface AppState {
     // Active view mode
     activeView: ViewMode
     setActiveView: (view: ViewMode) => void
+
+    // Edit history (undo/redo)
+    editHistory: HistoryEntry[]
+    historyIndex: number
+    pushToHistory: (entry: HistoryEntry) => void
+    undo: () => HistoryEntry | null
+    redo: () => HistoryEntry | null
+    canUndo: () => boolean
+    canRedo: () => boolean
+    clearHistory: () => void
 
     // Comparison state
     compareSourceA: string | null
@@ -101,6 +119,15 @@ interface AppState {
     addEdge: (edge: PipelineEdge) => void
     removeEdge: (edgeId: string) => void
     clearGraph: () => void
+
+    // Pipeline execution
+    isPipelineExecuting: boolean
+    pipelineExecutionProgress: number
+    pipelineCurrentNodeId: string | null
+    pipelineExecutionStatus: string
+    startPipelineExecution: () => void
+    updatePipelineProgress: (progress: number, nodeId: string | null, status: string) => void
+    stopPipelineExecution: () => void
 
     // Batch processing
     batchProgress: BatchProgress | null
@@ -180,6 +207,53 @@ export const useAppStore = create<AppState>((set, get) => ({
     // View mode
     activeView: 'single',
     setActiveView: (view) => set({ activeView: view }),
+
+    // Edit history (undo/redo) - max 20 entries
+    editHistory: [],
+    historyIndex: -1,
+    pushToHistory: (entry) =>
+        set((state) => {
+            // Truncate any redo entries when pushing new edit
+            const newHistory = state.editHistory.slice(0, state.historyIndex + 1)
+            newHistory.push(entry)
+            // Limit to 20 entries
+            if (newHistory.length > 20) {
+                newHistory.shift()
+            }
+            return {
+                editHistory: newHistory,
+                historyIndex: newHistory.length - 1,
+            }
+        }),
+    undo: () => {
+        const state = get()
+        if (state.historyIndex > 0) {
+            const newIndex = state.historyIndex - 1
+            const entry = state.editHistory[newIndex]
+            set({ historyIndex: newIndex })
+            return entry
+        }
+        return null
+    },
+    redo: () => {
+        const state = get()
+        if (state.historyIndex < state.editHistory.length - 1) {
+            const newIndex = state.historyIndex + 1
+            const entry = state.editHistory[newIndex]
+            set({ historyIndex: newIndex })
+            return entry
+        }
+        return null
+    },
+    canUndo: () => {
+        const state = get()
+        return state.historyIndex > 0
+    },
+    canRedo: () => {
+        const state = get()
+        return state.historyIndex < state.editHistory.length - 1
+    },
+    clearHistory: () => set({ editHistory: [], historyIndex: -1 }),
 
     // Comparison state
     compareSourceA: null,
@@ -272,6 +346,29 @@ export const useAppStore = create<AppState>((set, get) => ({
             pipelineEdges: state.pipelineEdges.filter((e) => e.id !== edgeId),
         })),
     clearGraph: () => set({ pipelineNodes: [], pipelineEdges: [], pipelineName: '' }),
+
+    // Pipeline execution
+    isPipelineExecuting: false,
+    pipelineExecutionProgress: 0,
+    pipelineCurrentNodeId: null,
+    pipelineExecutionStatus: '',
+    startPipelineExecution: () => set({
+        isPipelineExecuting: true,
+        pipelineExecutionProgress: 0,
+        pipelineCurrentNodeId: null,
+        pipelineExecutionStatus: 'Starting pipeline...',
+    }),
+    updatePipelineProgress: (progress, nodeId, status) => set({
+        pipelineExecutionProgress: progress,
+        pipelineCurrentNodeId: nodeId,
+        pipelineExecutionStatus: status,
+    }),
+    stopPipelineExecution: () => set({
+        isPipelineExecuting: false,
+        pipelineExecutionProgress: 0,
+        pipelineCurrentNodeId: null,
+        pipelineExecutionStatus: '',
+    }),
 
     // Batch processing
     batchProgress: null,

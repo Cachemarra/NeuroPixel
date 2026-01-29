@@ -1,13 +1,14 @@
 /**
  * NodePalette - Sidebar for adding nodes to the workflow
  * Shows categorized list of available nodes and plugins
+ * Now with draggable functionality
  */
 
-import { useState } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { usePluginsByCategory } from '@/hooks/usePlugins'
 import { NODE_TYPE_DEFINITIONS, type NodeTypeKey, type PipelineNode } from '@/types/nodeGraph'
-import type { LoadImageNodeData, SaveImageNodeData, MarkdownNoteNodeData, PreviewNodeData, OperatorNodeData } from '@/types/nodeGraph'
+import type { LoadImageNodeData, LoadBatchNodeData, SaveImageNodeData, MarkdownNoteNodeData, PreviewNodeData, OperatorNodeData } from '@/types/nodeGraph'
 import type { PluginSpec } from '@/types/plugin'
 
 interface NodePaletteProps {
@@ -16,12 +17,49 @@ interface NodePaletteProps {
 }
 
 // Utility nodes that are always available
-const UTILITY_NODES: NodeTypeKey[] = ['load_image', 'save_image', 'preview', 'markdown_note']
+const UTILITY_NODES: NodeTypeKey[] = ['load_image', 'load_batch', 'save_image', 'preview', 'markdown_note']
 
 export function NodePalette({ isOpen, onClose }: NodePaletteProps) {
     const { addNode, pipelineNodes } = useAppStore()
     const { categories, isLoading } = usePluginsByCategory()
     const [searchQuery, setSearchQuery] = useState('')
+
+    // Dragging state
+    const [position, setPosition] = useState({ x: 16, y: 64 })
+    const [isDragging, setIsDragging] = useState(false)
+    const dragStartPos = useRef({ x: 0, y: 0 })
+    const initialPos = useRef({ x: 0, y: 0 })
+
+    const handleDragStart = useCallback((e: React.MouseEvent) => {
+        e.preventDefault()
+        setIsDragging(true)
+        dragStartPos.current = { x: e.clientX, y: e.clientY }
+        initialPos.current = position
+    }, [position])
+
+    useEffect(() => {
+        if (!isDragging) return
+
+        const handleMouseMove = (e: MouseEvent) => {
+            const dx = e.clientX - dragStartPos.current.x
+            const dy = e.clientY - dragStartPos.current.y
+            setPosition({
+                x: Math.max(0, initialPos.current.x + dx),
+                y: Math.max(0, initialPos.current.y + dy),
+            })
+        }
+
+        const handleMouseUp = () => {
+            setIsDragging(false)
+        }
+
+        document.addEventListener('mousemove', handleMouseMove)
+        document.addEventListener('mouseup', handleMouseUp)
+        return () => {
+            document.removeEventListener('mousemove', handleMouseMove)
+            document.removeEventListener('mouseup', handleMouseUp)
+        }
+    }, [isDragging])
 
     // Calculate position for new node (offset from existing nodes)
     const getNewNodePosition = () => {
@@ -34,7 +72,7 @@ export function NodePalette({ isOpen, onClose }: NodePaletteProps) {
         const definition = NODE_TYPE_DEFINITIONS[type]
         const position = getNewNodePosition()
 
-        let data: LoadImageNodeData | SaveImageNodeData | MarkdownNoteNodeData | PreviewNodeData
+        let data: LoadImageNodeData | LoadBatchNodeData | SaveImageNodeData | MarkdownNoteNodeData | PreviewNodeData
 
         switch (type) {
             case 'load_image':
@@ -46,6 +84,18 @@ export function NodePalette({ isOpen, onClose }: NodePaletteProps) {
                     outputs: [{ name: 'image', type: 'image', label: 'Image' }],
                     imageId: null,
                     imageName: '',
+                }
+                break
+            case 'load_batch':
+                data = {
+                    nodeType: 'load_batch',
+                    label: definition.label,
+                    icon: definition.icon,
+                    inputs: [],
+                    outputs: [{ name: 'images', type: 'image', label: 'Images' }],
+                    folderPath: '',
+                    filePattern: '*.png,*.jpg,*.jpeg',
+                    imageCount: 0,
                 }
                 break
             case 'save_image':
@@ -153,12 +203,22 @@ export function NodePalette({ isOpen, onClose }: NodePaletteProps) {
     if (!isOpen) return null
 
     return (
-        <div className="absolute left-4 top-16 bottom-4 w-64 bg-surface-dark border border-border-dark rounded-lg shadow-xl z-10 flex flex-col overflow-hidden">
-            {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-border-dark">
-                <h3 className="text-sm font-semibold text-white">Add Node</h3>
+        <div
+            className={`absolute w-64 bg-surface-dark border border-border-dark rounded-lg shadow-xl z-10 flex flex-col overflow-hidden ${isDragging ? 'cursor-grabbing' : ''}`}
+            style={{ left: position.x, top: position.y, maxHeight: 'calc(100vh - 150px)' }}
+        >
+            {/* Draggable Header */}
+            <div
+                className="flex items-center justify-between px-4 py-3 border-b border-border-dark cursor-grab select-none"
+                onMouseDown={handleDragStart}
+            >
+                <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-text-secondary text-[16px]">drag_indicator</span>
+                    <h3 className="text-sm font-semibold text-white">Add Node</h3>
+                </div>
                 <button
                     onClick={onClose}
+                    onMouseDown={(e) => e.stopPropagation()}
                     className="p-1 text-text-secondary hover:text-white transition-colors"
                 >
                     <span className="material-symbols-outlined text-[18px]">close</span>

@@ -10,7 +10,7 @@ import { usePluginsByCategory } from '@/hooks/usePlugins'
 import { PluginController } from '@/components/PluginController'
 import type { PluginSpec } from '@/types/plugin'
 
-const API_BASE = 'http://localhost:8000'
+const API_BASE = 'http://localhost:8001'
 
 export function AnalysisWorkspace() {
     const fileInputRef = useRef<HTMLInputElement>(null)
@@ -81,6 +81,8 @@ export function AnalysisWorkspace() {
     } | null>(null)
     const [visibleChannels, setVisibleChannels] = useState<Set<string>>(new Set(['red', 'green', 'blue', 'gray']))
 
+    // Rotation preview state for real-time preview
+    const [rotationPreview, setRotationPreview] = useState(0)
 
     // Interaction state
     const [isDragging, setIsDragging] = useState(false)
@@ -353,16 +355,16 @@ export function AnalysisWorkspace() {
                                             {/* Plugin List & Controller */}
                                             {isOpen && (
                                                 <div className="border-t border-border-dark">
-                                                    {/* Plugin selector tabs */}
+                                                    {/* Plugin selector tabs - horizontally scrollable */}
                                                     {plugins.length > 1 && (
-                                                        <div className="flex border-b border-border-dark">
+                                                        <div className="flex overflow-x-auto border-b border-border-dark scrollbar-thin scrollbar-thumb-border-dark scrollbar-track-transparent">
                                                             {plugins.map((plugin) => {
                                                                 const isActive = activePlugin?.name === plugin.name
                                                                 return (
                                                                     <button
                                                                         key={plugin.name}
                                                                         onClick={() => handlePluginSelect(plugin)}
-                                                                        className={`flex-1 px-2 py-1.5 text-[10px] font-medium transition-colors ${isActive
+                                                                        className={`shrink-0 px-3 py-1.5 text-[10px] font-medium transition-colors whitespace-nowrap ${isActive
                                                                             ? 'text-primary border-b-2 border-primary bg-primary/5'
                                                                             : 'text-text-secondary hover:text-white hover:bg-panel-dark'
                                                                             }`}
@@ -423,10 +425,40 @@ export function AnalysisWorkspace() {
 
                         {/* Undo / Redo */}
                         <div className="flex items-center gap-1 ml-4 bg-background-dark rounded-sm border border-border-dark p-0.5">
-                            <button className="p-1 hover:bg-panel-dark text-text-secondary hover:text-white rounded-sm transition-colors" title="Undo">
+                            <button
+                                onClick={() => {
+                                    const entry = useAppStore.getState().undo()
+                                    if (entry) {
+                                        // Restore the image to its previous state
+                                        useAppStore.getState().updateImage(entry.imageId, {
+                                            url: entry.url,
+                                            thumbnailUrl: entry.thumbnailUrl,
+                                            name: entry.name,
+                                        })
+                                    }
+                                }}
+                                disabled={!useAppStore.getState().canUndo()}
+                                className="p-1 hover:bg-panel-dark text-text-secondary hover:text-white rounded-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                title="Undo"
+                            >
                                 <span className="material-symbols-outlined text-[16px]">undo</span>
                             </button>
-                            <button className="p-1 hover:bg-panel-dark text-text-secondary hover:text-white rounded-sm transition-colors" title="Redo">
+                            <button
+                                onClick={() => {
+                                    const entry = useAppStore.getState().redo()
+                                    if (entry) {
+                                        // Apply the redo state
+                                        useAppStore.getState().updateImage(entry.imageId, {
+                                            url: entry.url,
+                                            thumbnailUrl: entry.thumbnailUrl,
+                                            name: entry.name,
+                                        })
+                                    }
+                                }}
+                                disabled={!useAppStore.getState().canRedo()}
+                                className="p-1 hover:bg-panel-dark text-text-secondary hover:text-white rounded-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                title="Redo"
+                            >
                                 <span className="material-symbols-outlined text-[16px]">redo</span>
                             </button>
                         </div>
@@ -459,8 +491,8 @@ export function AnalysisWorkspace() {
                                 draggable={false}
                                 style={{
                                     imageRendering: 'auto',
-                                    // Remove restriction to allow pan/zoom
-                                    // max-w-[80vw] max-h-[70vh]
+                                    transform: rotationPreview !== 0 ? `rotate(${rotationPreview}deg)` : undefined,
+                                    transition: 'transform 0.2s ease-out',
                                 }}
                             />
                         ) : (
@@ -512,164 +544,317 @@ export function AnalysisWorkspace() {
                         <button className="p-2 hover:bg-panel-dark text-primary hover:text-blue-400 bg-primary/10 rounded-sm transition-colors" title="ROI Selection">
                             <span className="material-symbols-outlined text-[20px]">crop_free</span>
                         </button>
+                        <div className="w-px bg-border-dark my-1"></div>
+                        {/* Flip Transform Buttons */}
+                        <button
+                            onClick={async () => {
+                                if (!activeImageId) return
+                                // Push to history before transform
+                                const currentImage = useAppStore.getState().images.find(img => img.id === activeImageId)
+                                if (currentImage) {
+                                    useAppStore.getState().pushToHistory({
+                                        imageId: activeImageId,
+                                        url: currentImage.url,
+                                        thumbnailUrl: currentImage.thumbnailUrl,
+                                        name: currentImage.name,
+                                    })
+                                }
+                                try {
+                                    const res = await fetch(`http://localhost:8001/plugins/apply`, {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                            image_id: activeImageId,
+                                            plugin_name: 'rotate_flip',
+                                            params: { flip_horizontal: true }
+                                        })
+                                    })
+                                    if (res.ok) {
+                                        const data = await res.json()
+                                        useAppStore.getState().updateImage(activeImageId, {
+                                            url: data.result_url + '?t=' + Date.now(),
+                                            thumbnailUrl: data.thumbnail_url + '?t=' + Date.now(),
+                                        })
+                                    }
+                                } catch (err) {
+                                    console.error('Flip H failed:', err)
+                                }
+                            }}
+                            disabled={!activeImageId}
+                            className="p-2 hover:bg-panel-dark text-text-secondary hover:text-white rounded-sm transition-colors disabled:opacity-50"
+                            title="Flip Horizontal"
+                        >
+                            <span className="material-symbols-outlined text-[20px]">flip</span>
+                        </button>
+                        <button
+                            onClick={async () => {
+                                if (!activeImageId) return
+                                // Push to history before transform
+                                const currentImage = useAppStore.getState().images.find(img => img.id === activeImageId)
+                                if (currentImage) {
+                                    useAppStore.getState().pushToHistory({
+                                        imageId: activeImageId,
+                                        url: currentImage.url,
+                                        thumbnailUrl: currentImage.thumbnailUrl,
+                                        name: currentImage.name,
+                                    })
+                                }
+                                try {
+                                    const res = await fetch(`http://localhost:8001/plugins/apply`, {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                            image_id: activeImageId,
+                                            plugin_name: 'rotate_flip',
+                                            params: { flip_vertical: true }
+                                        })
+                                    })
+                                    if (res.ok) {
+                                        const data = await res.json()
+                                        useAppStore.getState().updateImage(activeImageId, {
+                                            url: data.result_url + '?t=' + Date.now(),
+                                            thumbnailUrl: data.thumbnail_url + '?t=' + Date.now(),
+                                        })
+                                    }
+                                } catch (err) {
+                                    console.error('Flip V failed:', err)
+                                }
+                            }}
+                            disabled={!activeImageId}
+                            className="p-2 hover:bg-panel-dark text-text-secondary hover:text-white rounded-sm transition-colors disabled:opacity-50"
+                            title="Flip Vertical"
+                        >
+                            <span className="material-symbols-outlined text-[20px]" style={{ transform: 'rotate(90deg)' }}>flip</span>
+                        </button>
+                        <div className="w-px bg-border-dark my-1"></div>
+                        {/* Rotation Controls */}
+                        <button
+                            onClick={() => setRotationPreview(prev => prev - 90)}
+                            disabled={!activeImageId}
+                            className="p-2 hover:bg-panel-dark text-text-secondary hover:text-white rounded-sm transition-colors disabled:opacity-50"
+                            title="Rotate 90° Counter-clockwise (Preview)"
+                        >
+                            <span className="material-symbols-outlined text-[20px]">rotate_left</span>
+                        </button>
+                        <button
+                            onClick={() => setRotationPreview(prev => prev + 90)}
+                            disabled={!activeImageId}
+                            className="p-2 hover:bg-panel-dark text-text-secondary hover:text-white rounded-sm transition-colors disabled:opacity-50"
+                            title="Rotate 90° Clockwise (Preview)"
+                        >
+                            <span className="material-symbols-outlined text-[20px]">rotate_right</span>
+                        </button>
+                        {rotationPreview !== 0 && (
+                            <>
+                                <button
+                                    onClick={() => setRotationPreview(0)}
+                                    className="p-2 hover:bg-panel-dark text-text-secondary hover:text-white rounded-sm transition-colors"
+                                    title="Cancel Rotation Preview"
+                                >
+                                    <span className="material-symbols-outlined text-[20px]">close</span>
+                                </button>
+                                <button
+                                    onClick={async () => {
+                                        if (!activeImageId) return
+                                        // Push to history before transform
+                                        const currentImage = useAppStore.getState().images.find(img => img.id === activeImageId)
+                                        if (currentImage) {
+                                            useAppStore.getState().pushToHistory({
+                                                imageId: activeImageId,
+                                                url: currentImage.url,
+                                                thumbnailUrl: currentImage.thumbnailUrl,
+                                                name: currentImage.name,
+                                            })
+                                        }
+                                        try {
+                                            const res = await fetch(`http://localhost:8001/plugins/apply`, {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({
+                                                    image_id: activeImageId,
+                                                    plugin_name: 'rotate_flip',
+                                                    params: { angle: rotationPreview }
+                                                })
+                                            })
+                                            if (res.ok) {
+                                                const data = await res.json()
+                                                useAppStore.getState().updateImage(activeImageId, {
+                                                    url: data.result_url + '?t=' + Date.now(),
+                                                    thumbnailUrl: data.thumbnail_url + '?t=' + Date.now(),
+                                                })
+                                                setRotationPreview(0)
+                                            }
+                                        } catch (err) {
+                                            console.error('Rotation failed:', err)
+                                        }
+                                    }}
+                                    className="p-2 hover:bg-primary/30 text-primary hover:text-white rounded-sm transition-colors bg-primary/10"
+                                    title={`Apply Rotation (${rotationPreview}°)`}
+                                >
+                                    <span className="material-symbols-outlined text-[20px]">check</span>
+                                </button>
+                            </>
+                        )}
                     </div>
-                </div>
-            </main>
+                </div >
+            </main >
 
             {/* Right Sidebar: Inspector (350px) */}
-            {rightSidebarOpen ? (
-                <aside className="w-[350px] flex flex-col border-l border-border-dark bg-surface-dark shrink-0 z-10 relative">
-                    {/* Collapse Button */}
-                    <button
-                        onClick={() => setRightSidebarOpen(false)}
-                        className="absolute -left-3 top-1/2 -translate-y-1/2 z-20 w-6 h-12 bg-surface-dark border border-border-dark rounded-l-md flex items-center justify-center text-text-secondary hover:text-white hover:bg-panel-dark cursor-pointer shadow-md"
-                        title="Collapse Inspector"
-                    >
-                        <span className="material-symbols-outlined text-[16px]">chevron_right</span>
-                    </button>
-
-                    {/* Histogram Section */}
-                    <div className="flex flex-col h-1/3 min-h-[250px] border-b border-border-dark">
-                        <div className="px-4 py-2 border-b border-border-dark bg-panel-dark flex justify-between items-center">
-                            <h3 className="text-xs font-semibold uppercase tracking-wider text-text-secondary">Histogram</h3>
-                            {/* Channel toggle buttons */}
-                            <div className="flex gap-1">
-                                {histogramData && Object.keys(histogramData).map(channel => {
-                                    const colors: Record<string, string> = {
-                                        red: 'bg-red-500',
-                                        green: 'bg-green-500',
-                                        blue: 'bg-blue-500',
-                                        gray: 'bg-zinc-400'
-                                    }
-                                    const isVisible = visibleChannels.has(channel)
-                                    return (
-                                        <button
-                                            key={channel}
-                                            onClick={() => {
-                                                const newChannels = new Set(visibleChannels)
-                                                if (isVisible) {
-                                                    newChannels.delete(channel)
-                                                } else {
-                                                    newChannels.add(channel)
-                                                }
-                                                setVisibleChannels(newChannels)
-                                            }}
-                                            className={`w-4 h-4 rounded-sm border border-border-dark ${isVisible ? colors[channel] : 'bg-panel-dark'}`}
-                                            title={`Toggle ${channel} channel`}
-                                        />
-                                    )
-                                })}
-                            </div>
-                        </div>
-                        <div className="p-4 flex-1 relative bg-surface-dark overflow-hidden">
-                            {/* Histogram visualization */}
-                            {histogramData ? (
-                                <div className="absolute inset-x-4 bottom-6 top-2 flex items-end">
-                                    {(() => {
-                                        // Get max value across all visible channels for normalization
-                                        const allValues = Object.entries(histogramData)
-                                            .filter(([ch]) => visibleChannels.has(ch))
-                                            .flatMap(([, vals]) => vals)
-                                        const maxVal = Math.max(...allValues, 1)
-
-                                        // Render all visible channels overlaid
-                                        return Object.entries(histogramData)
-                                            .filter(([ch]) => visibleChannels.has(ch))
-                                            .map(([channel, values]) => {
-                                                const colors: Record<string, string> = {
-                                                    red: 'bg-red-500/60',
-                                                    green: 'bg-green-500/60',
-                                                    blue: 'bg-blue-500/60',
-                                                    gray: 'bg-zinc-400/60'
-                                                }
-                                                return (
-                                                    <div key={channel} className="absolute inset-0 flex items-end gap-px">
-                                                        {values.map((val, i) => (
-                                                            <div
-                                                                key={i}
-                                                                className={`flex-1 ${colors[channel]} rounded-t-sm`}
-                                                                style={{ height: `${(val / maxVal) * 100}%` }}
-                                                            />
-                                                        ))}
-                                                    </div>
-                                                )
-                                            })
-                                    })()}
-                                </div>
-                            ) : (
-                                <div className="h-full flex items-center justify-center text-text-secondary text-sm">
-                                    {activeImage ? 'Loading...' : 'No image selected'}
-                                </div>
-                            )}
-                            {/* Axis Labels */}
-                            <div className="absolute bottom-0 left-4 right-4 flex justify-between text-[9px] text-text-secondary font-mono">
-                                <span>0</span>
-                                <span>128</span>
-                                <span>255</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Statistics Grid */}
-                    <div className="flex flex-col flex-1 overflow-y-auto">
-                        <div className="px-4 py-2 border-b border-border-dark bg-panel-dark">
-                            <h3 className="text-xs font-semibold uppercase tracking-wider text-text-secondary">Statistics</h3>
-                        </div>
-                        <div className="p-4">
-                            <div className="grid grid-cols-2 gap-px bg-border-dark border border-border-dark rounded-sm overflow-hidden">
-                                <StatItem label="Mean Intensity" value={statisticsData ? statisticsData.mean.toString() : "--"} />
-                                <StatItem label="Std Dev" value={statisticsData ? statisticsData.std.toString() : "--"} />
-                                <StatItem label="Entropy" value={statisticsData ? statisticsData.entropy.toString() : "--"} />
-                                <StatItem label="Kurtosis" value={statisticsData ? statisticsData.kurtosis.toString() : "--"} />
-                                <StatItem label="Skewness" value={statisticsData ? statisticsData.skewness.toString() : "--"} />
-                                <StatItem label="Max Value" value={statisticsData ? statisticsData.max.toString() : "--"} />
-                            </div>
-
-                            {/* Additional Details - Dynamic from metadata */}
-                            <div className="mt-6 space-y-3">
-                                <DetailRow
-                                    label="Color Space"
-                                    value={activeImage ? (activeImage.metadata.channels === 1 ? "Grayscale" : "RGB (sRGB)") : "--"}
-                                />
-                                <DetailRow
-                                    label="Bit Depth"
-                                    value={activeImage?.metadata.bitDepth || "--"}
-                                />
-                                <DetailRow
-                                    label="Dimensions"
-                                    value={activeImage ? `${activeImage.metadata.width} x ${activeImage.metadata.height}` : "--"}
-                                />
-                                <DetailRow
-                                    label="File Size"
-                                    value={activeImage ? formatFileSize(activeImage.metadata.fileSize) : "--"}
-                                />
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Bottom Inspector Action */}
-                    <div className="p-4 border-t border-border-dark bg-panel-dark">
+            {
+                rightSidebarOpen ? (
+                    <aside className="w-[350px] flex flex-col border-l border-border-dark bg-surface-dark shrink-0 z-10 relative">
+                        {/* Collapse Button */}
                         <button
-                            className="w-full bg-surface-dark hover:bg-border-dark border border-border-dark text-text-secondary hover:text-white text-xs font-medium py-2 rounded-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                            disabled={!activeImage}
+                            onClick={() => setRightSidebarOpen(false)}
+                            className="absolute -left-3 top-1/2 -translate-y-1/2 z-20 w-6 h-12 bg-surface-dark border border-border-dark rounded-l-md flex items-center justify-center text-text-secondary hover:text-white hover:bg-panel-dark cursor-pointer shadow-md"
+                            title="Collapse Inspector"
                         >
-                            <span className="material-symbols-outlined text-[16px]">download</span>
-                            Export Statistics CSV
+                            <span className="material-symbols-outlined text-[16px]">chevron_right</span>
+                        </button>
+
+                        {/* Histogram Section */}
+                        <div className="flex flex-col h-1/3 min-h-[250px] border-b border-border-dark">
+                            <div className="px-4 py-2 border-b border-border-dark bg-panel-dark flex justify-between items-center">
+                                <h3 className="text-xs font-semibold uppercase tracking-wider text-text-secondary">Histogram</h3>
+                                {/* Channel toggle buttons */}
+                                <div className="flex gap-1">
+                                    {histogramData && Object.keys(histogramData).map(channel => {
+                                        const colors: Record<string, string> = {
+                                            red: 'bg-red-500',
+                                            green: 'bg-green-500',
+                                            blue: 'bg-blue-500',
+                                            gray: 'bg-zinc-400'
+                                        }
+                                        const isVisible = visibleChannels.has(channel)
+                                        return (
+                                            <button
+                                                key={channel}
+                                                onClick={() => {
+                                                    const newChannels = new Set(visibleChannels)
+                                                    if (isVisible) {
+                                                        newChannels.delete(channel)
+                                                    } else {
+                                                        newChannels.add(channel)
+                                                    }
+                                                    setVisibleChannels(newChannels)
+                                                }}
+                                                className={`w-4 h-4 rounded-sm border border-border-dark ${isVisible ? colors[channel] : 'bg-panel-dark'}`}
+                                                title={`Toggle ${channel} channel`}
+                                            />
+                                        )
+                                    })}
+                                </div>
+                            </div>
+                            <div className="p-4 flex-1 relative bg-surface-dark overflow-hidden">
+                                {/* Histogram visualization */}
+                                {histogramData ? (
+                                    <div className="absolute inset-x-4 bottom-6 top-2 flex items-end">
+                                        {(() => {
+                                            // Get max value across all visible channels for normalization
+                                            const allValues = Object.entries(histogramData)
+                                                .filter(([ch]) => visibleChannels.has(ch))
+                                                .flatMap(([, vals]) => vals)
+                                            const maxVal = Math.max(...allValues, 1)
+
+                                            // Render all visible channels overlaid
+                                            return Object.entries(histogramData)
+                                                .filter(([ch]) => visibleChannels.has(ch))
+                                                .map(([channel, values]) => {
+                                                    const colors: Record<string, string> = {
+                                                        red: 'bg-red-500/60',
+                                                        green: 'bg-green-500/60',
+                                                        blue: 'bg-blue-500/60',
+                                                        gray: 'bg-zinc-400/60'
+                                                    }
+                                                    return (
+                                                        <div key={channel} className="absolute inset-0 flex items-end gap-px">
+                                                            {values.map((val, i) => (
+                                                                <div
+                                                                    key={i}
+                                                                    className={`flex-1 ${colors[channel]} rounded-t-sm`}
+                                                                    style={{ height: `${(val / maxVal) * 100}%` }}
+                                                                />
+                                                            ))}
+                                                        </div>
+                                                    )
+                                                })
+                                        })()}
+                                    </div>
+                                ) : (
+                                    <div className="h-full flex items-center justify-center text-text-secondary text-sm">
+                                        {activeImage ? 'Loading...' : 'No image selected'}
+                                    </div>
+                                )}
+                                {/* Axis Labels */}
+                                <div className="absolute bottom-0 left-4 right-4 flex justify-between text-[9px] text-text-secondary font-mono">
+                                    <span>0</span>
+                                    <span>128</span>
+                                    <span>255</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Statistics Grid */}
+                        <div className="flex flex-col flex-1 overflow-y-auto">
+                            <div className="px-4 py-2 border-b border-border-dark bg-panel-dark">
+                                <h3 className="text-xs font-semibold uppercase tracking-wider text-text-secondary">Statistics</h3>
+                            </div>
+                            <div className="p-4">
+                                <div className="grid grid-cols-2 gap-px bg-border-dark border border-border-dark rounded-sm overflow-hidden">
+                                    <StatItem label="Mean Intensity" value={statisticsData ? statisticsData.mean.toString() : "--"} />
+                                    <StatItem label="Std Dev" value={statisticsData ? statisticsData.std.toString() : "--"} />
+                                    <StatItem label="Entropy" value={statisticsData ? statisticsData.entropy.toString() : "--"} />
+                                    <StatItem label="Kurtosis" value={statisticsData ? statisticsData.kurtosis.toString() : "--"} />
+                                    <StatItem label="Skewness" value={statisticsData ? statisticsData.skewness.toString() : "--"} />
+                                    <StatItem label="Max Value" value={statisticsData ? statisticsData.max.toString() : "--"} />
+                                </div>
+
+                                {/* Additional Details - Dynamic from metadata */}
+                                <div className="mt-6 space-y-3">
+                                    <DetailRow
+                                        label="Color Space"
+                                        value={activeImage ? (activeImage.metadata.channels === 1 ? "Grayscale" : "RGB (sRGB)") : "--"}
+                                    />
+                                    <DetailRow
+                                        label="Bit Depth"
+                                        value={activeImage?.metadata.bitDepth || "--"}
+                                    />
+                                    <DetailRow
+                                        label="Dimensions"
+                                        value={activeImage ? `${activeImage.metadata.width} x ${activeImage.metadata.height}` : "--"}
+                                    />
+                                    <DetailRow
+                                        label="File Size"
+                                        value={activeImage ? formatFileSize(activeImage.metadata.fileSize) : "--"}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Bottom Inspector Action */}
+                        <div className="p-4 border-t border-border-dark bg-panel-dark">
+                            <button
+                                className="w-full bg-surface-dark hover:bg-border-dark border border-border-dark text-text-secondary hover:text-white text-xs font-medium py-2 rounded-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                disabled={!activeImage}
+                            >
+                                <span className="material-symbols-outlined text-[16px]">download</span>
+                                Export Statistics CSV
+                            </button>
+                        </div>
+                    </aside>
+                ) : (
+                    <div className="w-10 border-l border-border-dark bg-surface-dark flex flex-col items-center py-4 gap-4 z-10 shrink-0">
+                        <button
+                            onClick={() => setRightSidebarOpen(true)}
+                            className="p-2 hover:bg-panel-dark text-text-secondary hover:text-white rounded-sm transition-colors"
+                            title="Show Inspector"
+                        >
+                            <span className="material-symbols-outlined text-[20px]">dock_to_left</span>
                         </button>
                     </div>
-                </aside>
-            ) : (
-                <div className="w-10 border-l border-border-dark bg-surface-dark flex flex-col items-center py-4 gap-4 z-10 shrink-0">
-                    <button
-                        onClick={() => setRightSidebarOpen(true)}
-                        className="p-2 hover:bg-panel-dark text-text-secondary hover:text-white rounded-sm transition-colors"
-                        title="Show Inspector"
-                    >
-                        <span className="material-symbols-outlined text-[20px]">dock_to_left</span>
-                    </button>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     )
 }
 

@@ -2,7 +2,7 @@
  * FolderPickerModal - Directory browser using the backend API.
  */
 import { useState, useEffect } from 'react'
-const API_BASE = 'http://localhost:8000'
+const API_BASE = 'http://localhost:8001'
 
 interface FolderPickerModalProps {
     isOpen: boolean

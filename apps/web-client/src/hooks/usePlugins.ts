@@ -10,7 +10,7 @@ import type {
     PluginSpec,
 } from '@/types/plugin'
 
-const API_BASE = 'http://localhost:8000'
+const API_BASE = 'http://localhost:8001'
 
 /**
  * Fetch all available plugins
