@@ -14,7 +14,7 @@ const API_BASE = 'http://localhost:8001'
 
 export function AnalysisWorkspace() {
     const fileInputRef = useRef<HTMLInputElement>(null)
-    const { images, activeImageId, setActiveImage, addImage, isUploading, viewportState, setViewportState, resetViewport } = useAppStore()
+    const { images, activeImageId, setActiveImage, addImage, removeImage, clearImages, isUploading, viewportState, setViewportState, resetViewport } = useAppStore()
     const { uploadImage } = useImageUpload()
     const { categories, isLoading: pluginsLoading } = usePluginsByCategory()
 
@@ -190,6 +190,30 @@ export function AnalysisWorkspace() {
         fileInputRef.current?.click()
     }
 
+    const handleDeleteAll = async () => {
+        if (!confirm('Are you sure you want to delete all images?')) return
+        try {
+            const response = await fetch(`${API_BASE}/images`, { method: 'DELETE' })
+            if (response.ok) {
+                clearImages()
+            }
+        } catch (err) {
+            console.error('Failed to delete images:', err)
+        }
+    }
+
+    const handleDeleteImage = async (e: React.MouseEvent, id: string) => {
+        e.stopPropagation()
+        try {
+            const response = await fetch(`${API_BASE}/images/${id}`, { method: 'DELETE' })
+            if (response.ok) {
+                removeImage(id)
+            }
+        } catch (err) {
+            console.error('Failed to delete image:', err)
+        }
+    }
+
     const handleCategoryToggle = (category: string) => {
         if (openCategory === category) {
             setOpenCategory(null)
@@ -217,7 +241,7 @@ export function AnalysisWorkspace() {
 
     return (
         <div
-            className="flex h-screen w-screen overflow-hidden"
+            className="flex h-full w-full overflow-hidden"
             onDragOver={handleDragOver}
             onDrop={handleDrop}
         >
@@ -254,7 +278,13 @@ export function AnalysisWorkspace() {
                                 >
                                     add_photo_alternate
                                 </button>
-                                <span className="material-symbols-outlined text-text-secondary text-[16px] cursor-pointer hover:text-white">folder_open</span>
+                                <button
+                                    onClick={handleDeleteAll}
+                                    className="material-symbols-outlined text-text-secondary text-[16px] cursor-pointer hover:text-red-400 transition-colors"
+                                    title="Delete All Images"
+                                >
+                                    delete_sweep
+                                </button>
                                 <span className="material-symbols-outlined text-text-secondary text-[16px] cursor-pointer hover:text-white">refresh</span>
                             </div>
                         </div>
@@ -295,12 +325,21 @@ export function AnalysisWorkspace() {
                                             : 'hover:bg-panel-dark border border-transparent'
                                             }`}
                                     >
-                                        {/* Thumbnail */}
-                                        <div
-                                            className="rounded-sm size-10 shrink-0 bg-cover bg-center border border-border-dark"
-                                            style={{ backgroundImage: `url(${image.thumbnailUrl})` }}
-                                        />
-                                        <div className="flex flex-col min-w-0">
+                                        {/* Thumbnail with Delete Button */}
+                                        <div className="relative group/thumb">
+                                            <div
+                                                className="rounded-sm size-10 shrink-0 bg-cover bg-center border border-border-dark"
+                                                style={{ backgroundImage: `url(${image.thumbnailUrl})` }}
+                                            />
+                                            <button
+                                                onClick={(e) => handleDeleteImage(e, image.id)}
+                                                className="absolute -top-1 -right-1 size-4 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover/thumb:opacity-100 transition-opacity shadow-sm"
+                                                title="Delete image"
+                                            >
+                                                <span className="material-symbols-outlined text-[10px] font-bold">close</span>
+                                            </button>
+                                        </div>
+                                        <div className="flex flex-col min-w-0 flex-1">
                                             <p className={`text-xs font-medium truncate font-mono ${isActive ? 'text-white' : 'text-text-secondary'}`}>
                                                 {image.name}
                                             </p>
@@ -429,15 +468,14 @@ export function AnalysisWorkspace() {
                                 onClick={() => {
                                     const entry = useAppStore.getState().undo()
                                     if (entry) {
-                                        // Restore the image to its previous state
                                         useAppStore.getState().updateImage(entry.imageId, {
-                                            url: entry.url,
-                                            thumbnailUrl: entry.thumbnailUrl,
+                                            url: entry.url + (entry.url.includes('?') ? '&' : '?') + 't=' + Date.now(),
+                                            thumbnailUrl: entry.thumbnailUrl + (entry.thumbnailUrl.includes('?') ? '&' : '?') + 't=' + Date.now(),
                                             name: entry.name,
                                         })
                                     }
                                 }}
-                                disabled={!useAppStore.getState().canUndo()}
+                                disabled={!useAppStore((state) => state.canUndo())}
                                 className="p-1 hover:bg-panel-dark text-text-secondary hover:text-white rounded-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                                 title="Undo"
                             >
@@ -447,15 +485,14 @@ export function AnalysisWorkspace() {
                                 onClick={() => {
                                     const entry = useAppStore.getState().redo()
                                     if (entry) {
-                                        // Apply the redo state
                                         useAppStore.getState().updateImage(entry.imageId, {
-                                            url: entry.url,
-                                            thumbnailUrl: entry.thumbnailUrl,
+                                            url: entry.url + (entry.url.includes('?') ? '&' : '?') + 't=' + Date.now(),
+                                            thumbnailUrl: entry.thumbnailUrl + (entry.thumbnailUrl.includes('?') ? '&' : '?') + 't=' + Date.now(),
                                             name: entry.name,
                                         })
                                     }
                                 }}
-                                disabled={!useAppStore.getState().canRedo()}
+                                disabled={!useAppStore((state) => state.canRedo())}
                                 className="p-1 hover:bg-panel-dark text-text-secondary hover:text-white rounded-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                                 title="Redo"
                             >
@@ -465,238 +502,265 @@ export function AnalysisWorkspace() {
                     </div>
                 </div>
 
-                {/* Canvas Area */}
-                <div
-                    className="flex-1 relative overflow-hidden flex items-center justify-center bg-[#101012] bg-[radial-gradient(#27272a_1px,transparent_1px)] [background-size:16px_16px] cursor-move"
-                    onWheel={handleWheel}
-                    onMouseDown={handleMouseDown}
-                    onMouseMove={handleMouseMove}
-                    onMouseUp={handleMouseUp}
-                    onMouseLeave={handleMouseUp}
-                >
-                    {/* Dynamic Image or Placeholder */}
-                    <div
-                        className="relative shadow-2xl shadow-black/50 border border-border-dark"
-                        style={{
-                            transform: `translate(${viewportState.x}px, ${viewportState.y}px) scale(${viewportState.zoom})`,
-                            transition: isDragging ? 'none' : 'transform 0.1s ease-out'
-                        }}
-                    >
-                        {activeImage ? (
-                            /* Display the active image */
-                            <img
-                                src={activeImage.url}
-                                alt={activeImage.name}
-                                className="max-w-[none] pointer-events-none select-none"
-                                draggable={false}
-                                style={{
-                                    imageRendering: 'auto',
-                                    transform: rotationPreview !== 0 ? `rotate(${rotationPreview}deg)` : undefined,
-                                    transition: 'transform 0.2s ease-out',
-                                }}
-                            />
-                        ) : (
-                            /* Placeholder when no image */
-                            <div
-                                className="w-[500px] h-[500px] bg-gradient-to-br from-blue-900/20 via-cyan-800/20 to-green-900/20 flex items-center justify-center cursor-pointer hover:bg-white/5 transition-colors"
-                                onClick={handleImportClick}
-                            >
-                                <div className="text-center">
-                                    <span className="material-symbols-outlined text-6xl text-white/30">add_photo_alternate</span>
-                                    <p className="text-white/50 text-sm mt-2">Click to import an image</p>
-                                    <p className="text-white/30 text-xs mt-1">or drag & drop</p>
-                                </div>
-                            </div>
-                        )}
-                    </div>
+                {/* Viewport Content and HUD */}
+                <div className="flex-1 relative flex flex-col overflow-hidden">
 
-                    {/* Floating HUD */}
-                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-surface-dark/90 backdrop-blur-md border border-border-dark rounded-md shadow-lg p-1 flex gap-2">
-                        <button
-                            className="p-2 hover:bg-panel-dark text-text-secondary hover:text-white rounded-sm transition-colors"
-                            title="Pan (drag image)"
-                        >
-                            <span className="material-symbols-outlined text-[20px]">pan_tool</span>
-                        </button>
-                        <div className="w-px bg-border-dark my-1"></div>
-                        <button
-                            onClick={() => setViewportState({ zoom: Math.min(viewportState.zoom * 1.25, 10) })}
-                            className="p-2 hover:bg-panel-dark text-text-secondary hover:text-white rounded-sm transition-colors"
-                            title="Zoom In"
-                        >
-                            <span className="material-symbols-outlined text-[20px]">add</span>
-                        </button>
-                        <button
-                            onClick={() => setViewportState({ zoom: Math.max(viewportState.zoom / 1.25, 0.1) })}
-                            className="p-2 hover:bg-panel-dark text-text-secondary hover:text-white rounded-sm transition-colors"
-                            title="Zoom Out"
-                        >
-                            <span className="material-symbols-outlined text-[20px]">remove</span>
-                        </button>
-                        <button
-                            onClick={() => resetViewport()}
-                            className="p-2 hover:bg-panel-dark text-text-secondary hover:text-white rounded-sm transition-colors"
-                            title="Fit to Screen"
-                        >
-                            <span className="material-symbols-outlined text-[20px]">fit_screen</span>
-                        </button>
-                        <div className="w-px bg-border-dark my-1"></div>
-                        <button className="p-2 hover:bg-panel-dark text-primary hover:text-blue-400 bg-primary/10 rounded-sm transition-colors" title="ROI Selection">
-                            <span className="material-symbols-outlined text-[20px]">crop_free</span>
-                        </button>
-                        <div className="w-px bg-border-dark my-1"></div>
-                        {/* Flip Transform Buttons */}
-                        <button
-                            onClick={async () => {
-                                if (!activeImageId) return
-                                // Push to history before transform
-                                const currentImage = useAppStore.getState().images.find(img => img.id === activeImageId)
-                                if (currentImage) {
-                                    useAppStore.getState().pushToHistory({
-                                        imageId: activeImageId,
-                                        url: currentImage.url,
-                                        thumbnailUrl: currentImage.thumbnailUrl,
-                                        name: currentImage.name,
-                                    })
-                                }
-                                try {
-                                    const res = await fetch(`http://localhost:8001/plugins/run`, {
-                                        method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({
-                                            image_id: activeImageId,
-                                            plugin_name: 'rotate_flip',
-                                            params: { flip_horizontal: true }
-                                        })
-                                    })
-                                    if (res.ok) {
-                                        const data = await res.json()
-                                        useAppStore.getState().updateImage(activeImageId, {
-                                            url: data.result_url + '?t=' + Date.now(),
-                                            thumbnailUrl: data.thumbnail_url + '?t=' + Date.now(),
-                                        })
-                                    }
-                                } catch (err) {
-                                    console.error('Flip H failed:', err)
-                                }
+                    {/* Canvas Area */}
+                    <div
+                        className="flex-1 relative overflow-hidden flex items-center justify-center bg-[#101012] bg-[radial-gradient(#27272a_1px,transparent_1px)] [background-size:16px_16px] cursor-move"
+                        onWheel={handleWheel}
+                        onMouseDown={handleMouseDown}
+                        onMouseMove={handleMouseMove}
+                        onMouseUp={handleMouseUp}
+                        onMouseLeave={handleMouseUp}
+                    >
+                        {/* Dynamic Image or Placeholder */}
+                        <div
+                            className="relative shadow-2xl shadow-black/50 border border-border-dark"
+                            style={{
+                                transform: `translate(${viewportState.x}px, ${viewportState.y}px) scale(${viewportState.zoom})`,
+                                transition: isDragging ? 'none' : 'transform 0.1s ease-out'
                             }}
-                            disabled={!activeImageId}
-                            className="p-2 hover:bg-panel-dark text-text-secondary hover:text-white rounded-sm transition-colors disabled:opacity-50"
-                            title="Flip Horizontal"
                         >
-                            <span className="material-symbols-outlined text-[20px]">flip</span>
-                        </button>
-                        <button
-                            onClick={async () => {
-                                if (!activeImageId) return
-                                // Push to history before transform
-                                const currentImage = useAppStore.getState().images.find(img => img.id === activeImageId)
-                                if (currentImage) {
-                                    useAppStore.getState().pushToHistory({
-                                        imageId: activeImageId,
-                                        url: currentImage.url,
-                                        thumbnailUrl: currentImage.thumbnailUrl,
-                                        name: currentImage.name,
-                                    })
-                                }
-                                try {
-                                    const res = await fetch(`http://localhost:8001/plugins/run`, {
-                                        method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({
-                                            image_id: activeImageId,
-                                            plugin_name: 'rotate_flip',
-                                            params: { flip_vertical: true }
-                                        })
-                                    })
-                                    if (res.ok) {
-                                        const data = await res.json()
-                                        useAppStore.getState().updateImage(activeImageId, {
-                                            url: data.result_url + '?t=' + Date.now(),
-                                            thumbnailUrl: data.thumbnail_url + '?t=' + Date.now(),
-                                        })
-                                    }
-                                } catch (err) {
-                                    console.error('Flip V failed:', err)
-                                }
-                            }}
-                            disabled={!activeImageId}
-                            className="p-2 hover:bg-panel-dark text-text-secondary hover:text-white rounded-sm transition-colors disabled:opacity-50"
-                            title="Flip Vertical"
-                        >
-                            <span className="material-symbols-outlined text-[20px]" style={{ transform: 'rotate(90deg)' }}>flip</span>
-                        </button>
-                        <div className="w-px bg-border-dark my-1"></div>
-                        {/* Rotation Controls */}
-                        <button
-                            onClick={() => setRotationPreview(prev => prev - 90)}
-                            disabled={!activeImageId}
-                            className="p-2 hover:bg-panel-dark text-text-secondary hover:text-white rounded-sm transition-colors disabled:opacity-50"
-                            title="Rotate 90° Counter-clockwise (Preview)"
-                        >
-                            <span className="material-symbols-outlined text-[20px]">rotate_left</span>
-                        </button>
-                        <button
-                            onClick={() => setRotationPreview(prev => prev + 90)}
-                            disabled={!activeImageId}
-                            className="p-2 hover:bg-panel-dark text-text-secondary hover:text-white rounded-sm transition-colors disabled:opacity-50"
-                            title="Rotate 90° Clockwise (Preview)"
-                        >
-                            <span className="material-symbols-outlined text-[20px]">rotate_right</span>
-                        </button>
-                        {rotationPreview !== 0 && (
-                            <>
-                                <button
-                                    onClick={() => setRotationPreview(0)}
-                                    className="p-2 hover:bg-panel-dark text-text-secondary hover:text-white rounded-sm transition-colors"
-                                    title="Cancel Rotation Preview"
-                                >
-                                    <span className="material-symbols-outlined text-[20px]">close</span>
-                                </button>
-                                <button
-                                    onClick={async () => {
-                                        if (!activeImageId) return
-                                        // Push to history before transform
-                                        const currentImage = useAppStore.getState().images.find(img => img.id === activeImageId)
-                                        if (currentImage) {
-                                            useAppStore.getState().pushToHistory({
-                                                imageId: activeImageId,
-                                                url: currentImage.url,
-                                                thumbnailUrl: currentImage.thumbnailUrl,
-                                                name: currentImage.name,
-                                            })
-                                        }
-                                        try {
-                                            const res = await fetch(`http://localhost:8001/plugins/run`, {
-                                                method: 'POST',
-                                                headers: { 'Content-Type': 'application/json' },
-                                                body: JSON.stringify({
-                                                    image_id: activeImageId,
-                                                    plugin_name: 'rotate_flip',
-                                                    params: { angle: rotationPreview }
-                                                })
-                                            })
-                                            if (res.ok) {
-                                                const data = await res.json()
-                                                useAppStore.getState().updateImage(activeImageId, {
-                                                    url: data.result_url + '?t=' + Date.now(),
-                                                    thumbnailUrl: data.thumbnail_url + '?t=' + Date.now(),
-                                                })
-                                                setRotationPreview(0)
-                                            }
-                                        } catch (err) {
-                                            console.error('Rotation failed:', err)
-                                        }
+                            {activeImage ? (
+                                /* Display the active image */
+                                <img
+                                    src={activeImage.url}
+                                    alt={activeImage.name}
+                                    className="max-w-[none] pointer-events-none select-none"
+                                    draggable={false}
+                                    style={{
+                                        imageRendering: 'auto',
+                                        transform: rotationPreview !== 0 ? `rotate(${rotationPreview}deg)` : undefined,
+                                        transition: 'transform 0.2s ease-out',
                                     }}
-                                    className="p-2 hover:bg-primary/30 text-primary hover:text-white rounded-sm transition-colors bg-primary/10"
-                                    title={`Apply Rotation (${rotationPreview}°)`}
+                                />
+                            ) : (
+                                /* Placeholder when no image */
+                                <div
+                                    className="w-[500px] h-[500px] bg-gradient-to-br from-blue-900/20 via-cyan-800/20 to-green-900/20 flex items-center justify-center cursor-pointer hover:bg-white/5 transition-colors"
+                                    onClick={handleImportClick}
                                 >
-                                    <span className="material-symbols-outlined text-[20px]">check</span>
-                                </button>
-                            </>
-                        )}
+                                    <div className="text-center">
+                                        <span className="material-symbols-outlined text-6xl text-white/30">add_photo_alternate</span>
+                                        <p className="text-white/50 text-sm mt-2">Click to import an image</p>
+                                        <p className="text-white/30 text-xs mt-1">or drag & drop</p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Floating HUD */}
+                        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-surface-dark/90 backdrop-blur-md border border-border-dark rounded-md shadow-lg p-1 flex gap-2">
+                            <button
+                                className="p-2 hover:bg-panel-dark text-text-secondary hover:text-white rounded-sm transition-colors"
+                                title="Pan (drag image)"
+                            >
+                                <span className="material-symbols-outlined text-[20px]">pan_tool</span>
+                            </button>
+                            <div className="w-px bg-border-dark my-1"></div>
+                            <button
+                                onClick={() => setViewportState({ zoom: Math.min(viewportState.zoom * 1.25, 10) })}
+                                className="p-2 hover:bg-panel-dark text-text-secondary hover:text-white rounded-sm transition-colors"
+                                title="Zoom In"
+                            >
+                                <span className="material-symbols-outlined text-[20px]">add</span>
+                            </button>
+                            <button
+                                onClick={() => setViewportState({ zoom: Math.max(viewportState.zoom / 1.25, 0.1) })}
+                                className="p-2 hover:bg-panel-dark text-text-secondary hover:text-white rounded-sm transition-colors"
+                                title="Zoom Out"
+                            >
+                                <span className="material-symbols-outlined text-[20px]">remove</span>
+                            </button>
+                            <button
+                                onClick={() => resetViewport()}
+                                className="p-2 hover:bg-panel-dark text-text-secondary hover:text-white rounded-sm transition-colors"
+                                title="Fit to Screen"
+                            >
+                                <span className="material-symbols-outlined text-[20px]">fit_screen</span>
+                            </button>
+                            <div className="w-px bg-border-dark my-1"></div>
+                            <button className="p-2 hover:bg-panel-dark text-primary hover:text-blue-400 bg-primary/10 rounded-sm transition-colors" title="ROI Selection">
+                                <span className="material-symbols-outlined text-[20px]">crop_free</span>
+                            </button>
+                            <div className="w-px bg-border-dark my-1"></div>
+                            {/* Flip Transform Buttons */}
+                            <button
+                                onClick={async () => {
+                                    if (!activeImageId) return
+                                    // Push to history before transform
+                                    const currentImage = useAppStore.getState().images.find(img => img.id === activeImageId)
+                                    if (currentImage) {
+                                        useAppStore.getState().pushToHistory({
+                                            imageId: activeImageId,
+                                            url: currentImage.url,
+                                            thumbnailUrl: currentImage.thumbnailUrl,
+                                            name: currentImage.name,
+                                        })
+                                    }
+                                    try {
+                                        const res = await fetch(`http://localhost:8001/plugins/run`, {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({
+                                                image_id: activeImageId,
+                                                plugin_name: 'rotate_flip',
+                                                params: { flip_horizontal: true }
+                                            })
+                                        })
+                                        if (res.ok) {
+                                            const data = await res.json()
+                                            useAppStore.getState().updateImage(activeImageId, {
+                                                url: data.result_url + '?t=' + Date.now(),
+                                                thumbnailUrl: data.thumbnail_url + '?t=' + Date.now(),
+                                            })
+                                        }
+                                    } catch (err) {
+                                        console.error('Flip H failed:', err)
+                                    }
+                                }}
+                                disabled={!activeImageId}
+                                className="p-2 hover:bg-panel-dark text-text-secondary hover:text-white rounded-sm transition-colors disabled:opacity-50"
+                                title="Flip Horizontal"
+                            >
+                                <span className="material-symbols-outlined text-[20px]">flip</span>
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    if (!activeImageId) return
+                                    // Push to history before transform
+                                    const currentImage = useAppStore.getState().images.find(img => img.id === activeImageId)
+                                    if (currentImage) {
+                                        useAppStore.getState().pushToHistory({
+                                            imageId: activeImageId,
+                                            url: currentImage.url,
+                                            thumbnailUrl: currentImage.thumbnailUrl,
+                                            name: currentImage.name,
+                                        })
+                                    }
+                                    try {
+                                        const res = await fetch(`http://localhost:8001/plugins/run`, {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({
+                                                image_id: activeImageId,
+                                                plugin_name: 'rotate_flip',
+                                                params: { flip_vertical: true }
+                                            })
+                                        })
+                                        if (res.ok) {
+                                            const data = await res.json()
+                                            useAppStore.getState().updateImage(activeImageId, {
+                                                url: data.result_url + '?t=' + Date.now(),
+                                                thumbnailUrl: data.thumbnail_url + '?t=' + Date.now(),
+                                            })
+                                        }
+                                    } catch (err) {
+                                        console.error('Flip V failed:', err)
+                                    }
+                                }}
+                                disabled={!activeImageId}
+                                className="p-2 hover:bg-panel-dark text-text-secondary hover:text-white rounded-sm transition-colors disabled:opacity-50"
+                                title="Flip Vertical"
+                            >
+                                <span className="material-symbols-outlined text-[20px]" style={{ transform: 'rotate(90deg)' }}>flip</span>
+                            </button>
+                            <div className="w-px bg-border-dark my-1"></div>
+                            {/* Rotation Controls */}
+                            <button
+                                onClick={() => setRotationPreview(prev => prev - 90)}
+                                disabled={!activeImageId}
+                                className="p-2 hover:bg-panel-dark text-text-secondary hover:text-white rounded-sm transition-colors disabled:opacity-50"
+                                title="Rotate 90° Counter-clockwise (Preview)"
+                            >
+                                <span className="material-symbols-outlined text-[20px]">rotate_left</span>
+                            </button>
+                            <button
+                                onClick={() => setRotationPreview(prev => prev + 90)}
+                                disabled={!activeImageId}
+                                className="p-2 hover:bg-panel-dark text-text-secondary hover:text-white rounded-sm transition-colors disabled:opacity-50"
+                                title="Rotate 90° Clockwise (Preview)"
+                            >
+                                <span className="material-symbols-outlined text-[20px]">rotate_right</span>
+                            </button>
+                            {rotationPreview !== 0 && (
+                                <>
+                                    <button
+                                        onClick={() => setRotationPreview(0)}
+                                        className="p-2 hover:bg-panel-dark text-text-secondary hover:text-white rounded-sm transition-colors"
+                                        title="Cancel Rotation Preview"
+                                    >
+                                        <span className="material-symbols-outlined text-[20px]">close</span>
+                                    </button>
+                                    <button
+                                        onClick={async () => {
+                                            if (!activeImageId) return
+                                            // Push to history before transform
+                                            const currentImage = useAppStore.getState().images.find(img => img.id === activeImageId)
+                                            if (currentImage) {
+                                                useAppStore.getState().pushToHistory({
+                                                    imageId: activeImageId,
+                                                    url: currentImage.url,
+                                                    thumbnailUrl: currentImage.thumbnailUrl,
+                                                    name: currentImage.name,
+                                                })
+                                            }
+                                            try {
+                                                const res = await fetch(`http://localhost:8001/plugins/run`, {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({
+                                                        image_id: activeImageId,
+                                                        plugin_name: 'rotate_flip',
+                                                        params: { angle: rotationPreview }
+                                                    })
+                                                })
+                                                if (res.ok) {
+                                                    const data = await res.json()
+                                                    useAppStore.getState().updateImage(activeImageId, {
+                                                        url: data.result_url + '?t=' + Date.now(),
+                                                        thumbnailUrl: data.thumbnail_url + '?t=' + Date.now(),
+                                                    })
+                                                    setRotationPreview(0)
+                                                }
+                                            } catch (err) {
+                                                console.error('Rotation failed:', err)
+                                            }
+                                        }}
+                                        className="p-2 hover:bg-primary/30 text-primary hover:text-white rounded-sm transition-colors bg-primary/10"
+                                        title={`Apply Rotation (${rotationPreview}°)`}
+                                    >
+                                        <span className="material-symbols-outlined text-[20px]">check</span>
+                                    </button>
+                                </>
+                            )}
+                        </div>
                     </div>
-                </div >
+                </div>
+
+                {/* Bottom Status Bar: Camera / Movements */}
+                <div className="h-8 border-t border-border-dark bg-surface-dark px-4 flex items-center justify-between shrink-0">
+                    <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-1.5 overflow-hidden">
+                            <span className="material-symbols-outlined text-text-secondary text-[14px]">videocam</span>
+                            <span className="text-[10px] text-text-secondary uppercase font-bold tracking-wider">Camera:</span>
+                            <span className="text-[10px] text-white font-mono truncate max-w-[120px]">NP-PRO-2026</span>
+                        </div>
+                        <div className="h-3 w-px bg-border-dark"></div>
+                        <div className="flex items-center gap-1.5">
+                            <span className="material-symbols-outlined text-text-secondary text-[14px]">open_with</span>
+                            <span className="text-[10px] text-text-secondary uppercase font-bold tracking-wider">Movement:</span>
+                            <span className="text-[10px] text-white font-mono">X: {viewportState.x.toFixed(0)} Y: {viewportState.y.toFixed(0)}</span>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <span className="text-[10px] text-text-secondary font-mono italic">
+                            Streaming active • 60 FPS
+                        </span>
+                        <div className={`w-2 h-2 rounded-full ${activeImage ? 'bg-green-500 animate-pulse' : 'bg-zinc-600'}`}></div>
+                    </div>
+                </div>
             </main >
 
             {/* Right Sidebar: Inspector (350px) */}

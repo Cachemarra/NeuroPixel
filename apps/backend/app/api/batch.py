@@ -187,13 +187,20 @@ async def run_batch_job(job: BatchJob):
             output_path = job.output_folder / f"processed_{filename}"
             
             # Convert to saveable format
+            # Handle bit depth normalization
             if result_image.dtype != np.uint8:
                 if result_image.dtype == np.uint16:
                     result_image = (result_image / 256).astype(np.uint8)
                 elif result_image.dtype in [np.float32, np.float64]:
                     result_image = (result_image * 255).clip(0, 255).astype(np.uint8)
             
-            cv2.imwrite(str(output_path), result_image)
+            # Convert RGB to BGR for saving
+            if len(result_image.shape) == 3:
+                save_image = cv2.cvtColor(result_image, cv2.COLOR_RGB2BGR)
+            else:
+                save_image = result_image
+            
+            cv2.imwrite(str(output_path), save_image)
             job.processed += 1
             
         except Exception as e:

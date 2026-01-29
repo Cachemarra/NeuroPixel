@@ -3,8 +3,9 @@
  * Provides consistent styling, header, socket rendering, and resizing support
  */
 
-import { memo, type ReactNode } from 'react'
-import { Handle, Position, NodeResizer } from '@xyflow/react'
+import { memo, type ReactNode, useEffect } from 'react'
+import { Handle, Position, NodeResizer, useUpdateNodeInternals } from '@xyflow/react'
+import { useAppStore } from '@/store/appStore'
 import type { NodeInput, NodeOutput, SocketType } from '@/types/plugin'
 
 interface BaseNodeProps {
@@ -37,6 +38,7 @@ const SOCKET_COLORS: Record<SocketType, string> = {
 }
 
 function BaseNodeComponent({
+    id,
     data,
     selected = false,
     children,
@@ -47,10 +49,17 @@ function BaseNodeComponent({
     minHeight = 100,
     onToggleCollapse,
 }: BaseNodeProps) {
-    const { label, icon, inputs, outputs, collapsed = false, headerColor: dataHeaderColor } = data
+    const { label, icon, inputs, outputs, collapsed = false, disabled = false, headerColor: dataHeaderColor } = data
+    const updateNodeInternals = useUpdateNodeInternals()
+    const { toggleNodeDisabled } = useAppStore()
+
     // Use data.headerColor if set, otherwise use prop
     const effectiveHeaderColor = (dataHeaderColor as string) || headerColor
 
+    // Update node internals (handles) when collapsed state changes
+    useEffect(() => {
+        updateNodeInternals(id)
+    }, [id, collapsed, updateNodeInternals])
 
     return (
         <>
@@ -69,7 +78,8 @@ function BaseNodeComponent({
                 className={`
                     min-w-[200px] ${collapsed ? 'w-[200px]' : 'w-full h-full'}
                     bg-surface-dark border rounded-lg
-                    transition-all duration-150 flex flex-col
+                    transition-all duration-200 flex flex-col
+                    ${disabled ? 'opacity-40 grayscale-[0.5] contrast-[0.8]' : 'opacity-100'}
                     ${selected
                         ? 'border-primary shadow-lg shadow-primary/20'
                         : 'border-border-dark shadow-md'
@@ -91,6 +101,21 @@ function BaseNodeComponent({
                         <span className="text-sm font-semibold text-white truncate flex-1">
                             {label}
                         </span>
+
+                        {/* Disable Toggle */}
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation()
+                                toggleNodeDisabled(id)
+                            }}
+                            className="p-0.5 hover:bg-white/20 rounded transition-colors"
+                            title={disabled ? 'Enable node' : 'Disable node'}
+                        >
+                            <span className="material-symbols-outlined text-white/70 text-[16px]">
+                                {disabled ? 'visibility_off' : 'visibility'}
+                            </span>
+                        </button>
+
                         {/* Collapse Toggle Button */}
                         {onToggleCollapse && (
                             <button
@@ -124,6 +149,7 @@ function BaseNodeComponent({
                             width: 12,
                             height: 12,
                             border: '2px solid #18181b',
+                            zIndex: 20
                         }}
                         title={`${input.label} (${input.type})`}
                     />
@@ -142,6 +168,7 @@ function BaseNodeComponent({
                             width: 12,
                             height: 12,
                             border: '2px solid #18181b',
+                            zIndex: 20
                         }}
                         title={`${output.label} (${output.type})`}
                     />

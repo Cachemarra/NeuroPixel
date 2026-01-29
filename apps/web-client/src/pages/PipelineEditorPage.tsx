@@ -3,7 +3,7 @@
  * ComfyUI-style workflow editor with draggable nodes, connections, and context menu
  */
 
-import { useCallback, useState, useRef } from 'react'
+import { useCallback, useState, useRef, useEffect } from 'react'
 import {
     ReactFlow,
     Background,
@@ -45,12 +45,18 @@ function PipelineEditorContent() {
         setPipelineName,
         setNodes,
         setEdges,
+        undoPipeline,
+        redoPipeline,
+        canUndoPipeline,
+        canRedoPipeline,
+        toggleNodeDisabled,
         isPipelineExecuting,
         pipelineExecutionProgress,
         pipelineExecutionStatus,
         startPipelineExecution,
         updatePipelineProgress,
         stopPipelineExecution,
+        images,
     } = useAppStore()
 
     const { categories } = usePluginsByCategory()
@@ -63,8 +69,6 @@ function PipelineEditorContent() {
     const [contextMenuPosition, setContextMenuPosition] = useState<ContextMenuPosition | null>(null)
     const [contextMenuItems, setContextMenuItems] = useState<ContextMenuItem[]>([])
     const [addNodeMenuPosition, setAddNodeMenuPosition] = useState<ContextMenuPosition | null>(null)
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const [rightClickNodeId, setRightClickNodeId] = useState<string | null>(null)
 
     // Rename dialog state
     const [renameDialogOpen, setRenameDialogOpen] = useState(false)
@@ -90,6 +94,30 @@ function PipelineEditorContent() {
         { name: 'Purple', value: 'bg-purple-600' },
         { name: 'Pink', value: 'bg-pink-600' },
     ]
+
+    // Keyboard shortcuts
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+                e.preventDefault()
+                undoPipeline()
+            }
+            if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'Z' && e.shiftKey))) {
+                e.preventDefault()
+                redoPipeline()
+            }
+            if (e.key === 'Delete' || e.key === 'Backspace') {
+                const selectedNodes = reactFlowInstance.getNodes().filter(n => n.selected)
+                const selectedEdges = reactFlowInstance.getEdges().filter(e => e.selected)
+                if (selectedNodes.length > 0 || selectedEdges.length > 0) {
+                    selectedNodes.forEach(n => removeNode(n.id))
+                    // Edges are handled by React Flow mostly, but we trigger removeNode which cleans edges
+                }
+            }
+        }
+        window.addEventListener('keydown', handleKeyDown)
+        return () => window.removeEventListener('keydown', handleKeyDown)
+    }, [undoPipeline, redoPipeline, removeNode, reactFlowInstance])
 
     // Get position in flow from screen coordinates
     const getFlowPosition = useCallback((clientX: number, clientY: number) => {
@@ -228,7 +256,7 @@ function PipelineEditorContent() {
         addNode(node)
     }, [addNode, getNewNodePosition])
 
-    // Execute pipeline with progress tracking
+    // Execute pipeline with actual backend calls
     const handleExecutePipeline = useCallback(async () => {
         if (isPipelineExecuting) {
             stopPipelineExecution()
@@ -239,30 +267,105 @@ function PipelineEditorContent() {
 
         startPipelineExecution()
 
-        // Simulate pipeline execution - in real implementation, this would call backend
-        const totalNodes = pipelineNodes.length
-        for (let i = 0; i < totalNodes; i++) {
-            const node = pipelineNodes[i]
-            const progress = ((i + 1) / totalNodes) * 100
-            updatePipelineProgress(
-                progress,
-                node.id,
-                `Processing: ${(node.data as { label?: string }).label || 'Node ' + (i + 1)}`
-            )
+        try {
+            // Traverse nodes by X-position for a simple execution order
+            const executableNodes = [...pipelineNodes].sort((a, b) => a.position.x - b.position.x)
 
-            // Simulate processing time (in real implementation, this would be actual processing)
-            await new Promise(resolve => setTimeout(resolve, 800))
+            // Find initial image from the first load_image node
+            const loadNode = executableNodes.find(n => n.type === 'load_image') as PipelineNode | undefined
+            let currentImageId = loadNode?.data?.nodeType === 'load_image' ? loadNode.data.imageId : null
+
+            if (!currentImageId && images.length > 0) {
+                currentImageId = images[0].id
+            }
+
+            if (!currentImageId) {
+                updatePipelineProgress(0, null, 'Error: No source image selected')
+                setTimeout(stopPipelineExecution, 2000)
+                return
+            }
+
+            let stepCount = 0
+            const totalSteps = executableNodes.filter(n => n.type === 'operator' || n.type === 'save_image' || n.type === 'preview').length
+
+            for (const node of executableNodes) {
+                if (node.data.disabled) continue
+
+                if (node.type === 'operator') {
+                    const data = node.data as OperatorNodeData
+                    updatePipelineProgress(
+                        (stepCount / totalSteps) * 100,
+                        node.id,
+                        `Running: ${data.label}`
+                    )
+
+                    const response = await fetch('http://localhost:8001/plugins/run', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            image_id: currentImageId,
+                            plugin_name: data.pluginName,
+                            params: data.params
+                        })
+                    })
+
+                    if (response.ok) {
+                        const result = await response.json()
+                        currentImageId = result.result_id
+                    }
+                    stepCount++
+                } else if (node.type === 'preview') {
+                    updatePipelineProgress(
+                        (stepCount / totalSteps) * 100,
+                        node.id,
+                        'Updating preview...'
+                    )
+
+                    // Update the preview URL for this node
+                    if (currentImageId) {
+                        const imgResponse = await fetch(`http://localhost:8001/images/${currentImageId}`)
+                        if (imgResponse.ok) {
+                            const imgData = await imgResponse.json()
+                            updateNodeData(node.id, { previewUrl: imgData.url })
+                        }
+                    }
+                    stepCount++
+                } else if (node.type === 'save_image') {
+                    const saveData = node.data as SaveImageNodeData
+                    updatePipelineProgress(
+                        (stepCount / totalSteps) * 100,
+                        node.id,
+                        'Saving image...'
+                    )
+
+                    await fetch('http://localhost:8001/plugins/run', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            image_id: currentImageId,
+                            plugin_name: 'save_image',
+                            params: {
+                                output_path: saveData.outputPath || './output',
+                                filename: saveData.filename || 'result',
+                                format: saveData.format || 'png'
+                            }
+                        })
+                    })
+                    stepCount++
+                }
+            }
+
+            updatePipelineProgress(100, null, 'Pipeline completed!')
+        } catch (err: any) {
+            updatePipelineProgress(0, null, `Error: ${err.message}`)
+        } finally {
+            setTimeout(stopPipelineExecution, 1500)
         }
-
-        updatePipelineProgress(100, null, 'Pipeline completed!')
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        stopPipelineExecution()
-    }, [isPipelineExecuting, pipelineNodes, startPipelineExecution, updatePipelineProgress, stopPipelineExecution])
+    }, [isPipelineExecuting, pipelineNodes, images, startPipelineExecution, updatePipelineProgress, stopPipelineExecution, updateNodeData])
 
     // Handle right-click on canvas (not on node)
-    const handlePaneContextMenu = useCallback((event: React.MouseEvent) => {
+    const handlePaneContextMenu = useCallback((event: React.MouseEvent | MouseEvent) => {
         event.preventDefault()
-        setRightClickNodeId(null)
 
         const items: ContextMenuItem[] = [
             {
@@ -313,7 +416,6 @@ function PipelineEditorContent() {
     // Handle right-click on node
     const handleNodeContextMenu: NodeMouseHandler = useCallback((event, node) => {
         event.preventDefault()
-        setRightClickNodeId(node.id)
 
         const items: ContextMenuItem[] = [
             {
@@ -347,6 +449,12 @@ function PipelineEditorContent() {
             },
             { label: '', action: () => { }, divider: true },
             {
+                label: node.data.disabled ? 'Enable Node' : 'Disable Node',
+                icon: node.data.disabled ? 'visibility' : 'visibility_off',
+                action: () => toggleNodeDisabled(node.id),
+            },
+            { label: '', action: () => { }, divider: true },
+            {
                 label: 'Delete Node',
                 icon: 'delete',
                 action: () => removeNode(node.id),
@@ -362,13 +470,11 @@ function PipelineEditorContent() {
     const closeContextMenus = useCallback(() => {
         setContextMenuPosition(null)
         setAddNodeMenuPosition(null)
-        setRightClickNodeId(null)
     }, [])
 
     // Close only the main context menu (keeps AddNodeSubmenu open if trigger)
     const closeMainContextMenu = useCallback(() => {
         setContextMenuPosition(null)
-        setRightClickNodeId(null)
     }, [])
 
     // Handle rename confirmation
@@ -449,11 +555,27 @@ function PipelineEditorContent() {
                                 placeholder="Untitled Workflow"
                                 className="bg-transparent text-lg font-bold text-white border-none outline-none focus:border-b focus:border-primary"
                             />
-                            <p className="text-text-secondary text-xs font-mono">
-                                {pipelineNodes.length} nodes • {pipelineEdges.length} connections
-                            </p>
                         </div>
                     </div>
+                </div>
+
+                <div className="flex items-center gap-2 ml-8 bg-background-dark/50 rounded-md border border-border-dark p-1">
+                    <button
+                        onClick={undoPipeline}
+                        disabled={!canUndoPipeline()}
+                        className="p-1.5 hover:bg-panel-dark text-text-secondary hover:text-white rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        title="Undo (Ctrl+Z)"
+                    >
+                        <span className="material-symbols-outlined text-[20px]">undo</span>
+                    </button>
+                    <button
+                        onClick={redoPipeline}
+                        disabled={!canRedoPipeline()}
+                        className="p-1.5 hover:bg-panel-dark text-text-secondary hover:text-white rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        title="Redo (Ctrl+Y)"
+                    >
+                        <span className="material-symbols-outlined text-[20px]">redo</span>
+                    </button>
                 </div>
 
                 <div className="flex items-center gap-3">

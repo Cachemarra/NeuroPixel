@@ -94,12 +94,16 @@ async def run_plugin(request: PluginRunRequest):
         source_path = source_entry["path"]
         if not source_path.exists():
             raise HTTPException(status_code=404, detail="Source image file not found")
-        source_image = cv2.imread(str(source_path), cv2.IMREAD_UNCHANGED)
-        if source_image is None:
+        
+        # Load from disk and convert to RGB
+        source_image_bgr = cv2.imread(str(source_path), cv2.IMREAD_UNCHANGED)
+        if source_image_bgr is None:
             raise HTTPException(status_code=500, detail="Failed to read source image")
-        # Convert BGR to RGB for processing
-        if len(source_image.shape) == 3 and source_image.shape[2] >= 3:
-            source_image = cv2.cvtColor(source_image, cv2.COLOR_BGR2RGB)
+        
+        if len(source_image_bgr.shape) == 3:
+            source_image = cv2.cvtColor(source_image_bgr, cv2.COLOR_BGR2RGB)
+        else:
+            source_image = source_image_bgr
     
     try:
         # Execute the plugin
@@ -115,8 +119,8 @@ async def run_plugin(request: PluginRunRequest):
         # Save result to disk
         result_path = UPLOAD_DIR / f"{result_id}_processed.png"
         
-        # Convert RGB to BGR for saving with OpenCV
-        if len(result_image.shape) == 3 and result_image.shape[2] >= 3:
+        # Convert RGB (internal) to BGR for cv2.imwrite
+        if len(result_image.shape) == 3:
             save_image = cv2.cvtColor(result_image, cv2.COLOR_RGB2BGR)
         else:
             save_image = result_image

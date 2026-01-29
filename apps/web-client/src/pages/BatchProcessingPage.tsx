@@ -174,13 +174,48 @@ function BatchProcessingContent() {
         }
 
         // Now run batch processing
-        const backendSteps = pipelineSteps
-            .filter(s => s.active)
-            .map(s => ({
-                plugin_name: s.pluginName,
-                params: s.params,
-                active: true
-            }))
+        // Strategy: Convert graph nodes to linear steps by sorting by x-position
+        // (Simple heuristic for linear pipelines)
+        const sortedNodes = [...pipelineNodes].sort((a, b) => a.position.x - b.position.x)
+
+        const backendSteps = sortedNodes
+            .filter(node => node.type === 'operator' || node.type === 'save_image')
+            .map(node => {
+                if (node.type === 'operator') {
+                    const d = node.data as any
+                    return {
+                        plugin_name: d.pluginName,
+                        params: d.params,
+                        active: true
+                    }
+                } else if (node.type === 'save_image') {
+                    const d = node.data as any
+                    return {
+                        plugin_name: 'save_image',
+                        params: {
+                            output_path: d.outputPath || outputFolder,
+                            filename: d.filename || 'batch_result',
+                            format: d.format || 'png'
+                        },
+                        active: true
+                    }
+                }
+                return null
+            })
+            .filter(Boolean)
+
+        // Fallback to legacy steps if graph is empty
+        if (backendSteps.length === 0 && pipelineSteps.length > 0) {
+            pipelineSteps
+                .filter(s => s.active)
+                .forEach(s => {
+                    backendSteps.push({
+                        plugin_name: s.pluginName,
+                        params: s.params,
+                        active: true
+                    } as any)
+                })
+        }
 
         try {
             const response = await fetch(`${API_BASE}/batch/run`, {
@@ -276,8 +311,8 @@ function BatchProcessingContent() {
                                 key={img.id}
                                 onClick={() => handleImageClick(img)}
                                 className={`w-full flex items-center gap-2 p-2 rounded transition-colors ${selectedImageId === img.id
-                                        ? 'bg-primary/20 border border-primary/50'
-                                        : 'hover:bg-panel-dark border border-transparent'
+                                    ? 'bg-primary/20 border border-primary/50'
+                                    : 'hover:bg-panel-dark border border-transparent'
                                     }`}
                             >
                                 <img

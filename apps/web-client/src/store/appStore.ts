@@ -61,6 +61,7 @@ interface AppState {
     addImage: (image: ImageData) => void
     updateImage: (id: string, updates: Partial<ImageData>) => void
     removeImage: (id: string) => void
+    clearImages: () => void
     setActiveImage: (id: string | null) => void
     getActiveImage: () => ImageData | undefined
 
@@ -109,6 +110,8 @@ interface AppState {
     // Node Graph (new ComfyUI-style workflow)
     pipelineNodes: PipelineNode[]
     pipelineEdges: PipelineEdge[]
+    pipelineHistory: { nodes: PipelineNode[]; edges: PipelineEdge[] }[]
+    pipelineHistoryIndex: number
     setNodes: (nodes: PipelineNode[]) => void
     setEdges: (edges: PipelineEdge[]) => void
     onNodesChange: (changes: import('@xyflow/react').NodeChange<PipelineNode>[]) => void
@@ -118,7 +121,15 @@ interface AppState {
     updateNodeData: (nodeId: string, data: Partial<NodeData>) => void
     addEdge: (edge: PipelineEdge) => void
     removeEdge: (edgeId: string) => void
+    toggleNodeDisabled: (nodeId: string) => void
     clearGraph: () => void
+
+    // Pipeline History Actions
+    pushPipelineHistory: () => void
+    undoPipeline: () => void
+    redoPipeline: () => void
+    canUndoPipeline: () => boolean
+    canRedoPipeline: () => boolean
 
     // Pipeline execution
     isPipelineExecuting: boolean
@@ -198,6 +209,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             images: state.images.filter((img) => img.id !== id),
             activeImageId: state.activeImageId === id ? null : state.activeImageId,
         })),
+    clearImages: () => set({ images: [], activeImageId: null }),
     setActiveImage: (id) => set({ activeImageId: id }),
     getActiveImage: () => {
         const state = get()
@@ -306,12 +318,23 @@ export const useAppStore = create<AppState>((set, get) => ({
     // Node Graph state and actions
     pipelineNodes: [],
     pipelineEdges: [],
-    setNodes: (nodes) => set({ pipelineNodes: nodes }),
-    setEdges: (edges) => set({ pipelineEdges: edges }),
+    pipelineHistory: [],
+    pipelineHistoryIndex: -1,
+    setNodes: (nodes) => {
+        set({ pipelineNodes: nodes })
+        get().pushPipelineHistory()
+    },
+    setEdges: (edges) => {
+        set({ pipelineEdges: edges })
+        get().pushPipelineHistory()
+    },
     onNodesChange: (changes: NodeChange<PipelineNode>[]) => {
-        set((state) => ({
-            pipelineNodes: applyNodeChanges(changes, state.pipelineNodes) as PipelineNode[],
-        }))
+        set((state) => {
+            const nextNodes = applyNodeChanges(changes, state.pipelineNodes) as PipelineNode[]
+            // Only push to history if this wasn't just a selection change or position change (to avoid flooding)
+            // Actually, position changes should be undoable.
+            return { pipelineNodes: nextNodes }
+        })
     },
     onEdgesChange: (changes: EdgeChange<PipelineEdge>[]) => {
         set((state) => ({
@@ -319,33 +342,115 @@ export const useAppStore = create<AppState>((set, get) => ({
         }))
     },
     addNode: (node) =>
-        set((state) => ({
-            pipelineNodes: [...state.pipelineNodes, node],
-        })),
+        set((state) => {
+            const nextNodes = [...state.pipelineNodes, node]
+            setTimeout(() => get().pushPipelineHistory(), 0)
+            return { pipelineNodes: nextNodes }
+        }),
     removeNode: (nodeId) =>
-        set((state) => ({
-            pipelineNodes: state.pipelineNodes.filter((n) => n.id !== nodeId),
-            pipelineEdges: state.pipelineEdges.filter(
+        set((state) => {
+            const nextNodes = state.pipelineNodes.filter((n) => n.id !== nodeId)
+            const nextEdges = state.pipelineEdges.filter(
                 (e) => e.source !== nodeId && e.target !== nodeId
-            ),
-        })),
+            )
+            setTimeout(() => get().pushPipelineHistory(), 0)
+            return {
+                pipelineNodes: nextNodes,
+                pipelineEdges: nextEdges,
+            }
+        }),
     updateNodeData: (nodeId, data) =>
-        set((state) => ({
-            pipelineNodes: state.pipelineNodes.map((n) =>
+        set((state) => {
+            const nextNodes = state.pipelineNodes.map((n) =>
                 n.id === nodeId
                     ? { ...n, data: { ...n.data, ...data } as NodeData }
                     : n
-            ),
-        })),
+            )
+            // Pushing to history for data changes should be debounced or explicit
+            return { pipelineNodes: nextNodes }
+        }),
     addEdge: (edge) =>
-        set((state) => ({
-            pipelineEdges: [...state.pipelineEdges, edge],
-        })),
+        set((state) => {
+            const nextEdges = [...state.pipelineEdges, edge]
+            setTimeout(() => get().pushPipelineHistory(), 0)
+            return { pipelineEdges: nextEdges }
+        }),
     removeEdge: (edgeId) =>
-        set((state) => ({
-            pipelineEdges: state.pipelineEdges.filter((e) => e.id !== edgeId),
-        })),
-    clearGraph: () => set({ pipelineNodes: [], pipelineEdges: [], pipelineName: '' }),
+        set((state) => {
+            const nextEdges = state.pipelineEdges.filter((e) => e.id !== edgeId)
+            setTimeout(() => get().pushPipelineHistory(), 0)
+            return { pipelineEdges: nextEdges }
+        }),
+    toggleNodeDisabled: (nodeId) =>
+        set((state) => {
+            const nextNodes = state.pipelineNodes.map((n) =>
+                n.id === nodeId
+                    ? { ...n, data: { ...n.data, disabled: !n.data.disabled } as NodeData }
+                    : n
+            )
+            setTimeout(() => get().pushPipelineHistory(), 0)
+            return { pipelineNodes: nextNodes }
+        }),
+    clearGraph: () => {
+        set({ pipelineNodes: [], pipelineEdges: [], pipelineName: '' })
+        get().pushPipelineHistory()
+    },
+
+    // Pipeline History Actions
+    pushPipelineHistory: () => {
+        const { pipelineNodes, pipelineEdges, pipelineHistory, pipelineHistoryIndex } = get()
+        // Save current state
+        const snapshot = {
+            nodes: JSON.parse(JSON.stringify(pipelineNodes)),
+            edges: JSON.parse(JSON.stringify(pipelineEdges)),
+        }
+
+        // Truncate redo history
+        const newHistory = pipelineHistory.slice(0, pipelineHistoryIndex + 1)
+
+        // Don't push if it's identical to last entry
+        if (newHistory.length > 0) {
+            const last = newHistory[newHistory.length - 1]
+            if (JSON.stringify(last.nodes) === JSON.stringify(snapshot.nodes) &&
+                JSON.stringify(last.edges) === JSON.stringify(snapshot.edges)) {
+                return
+            }
+        }
+
+        newHistory.push(snapshot)
+        if (newHistory.length > 50) newHistory.shift()
+
+        set({
+            pipelineHistory: newHistory,
+            pipelineHistoryIndex: newHistory.length - 1,
+        })
+    },
+    undoPipeline: () => {
+        const { pipelineHistory, pipelineHistoryIndex } = get()
+        if (pipelineHistoryIndex > 0) {
+            const prevIndex = pipelineHistoryIndex - 1
+            const snapshot = pipelineHistory[prevIndex]
+            set({
+                pipelineNodes: JSON.parse(JSON.stringify(snapshot.nodes)),
+                pipelineEdges: JSON.parse(JSON.stringify(snapshot.edges)),
+                pipelineHistoryIndex: prevIndex,
+            })
+        }
+    },
+    redoPipeline: () => {
+        const { pipelineHistory, pipelineHistoryIndex } = get()
+        if (pipelineHistoryIndex < pipelineHistory.length - 1) {
+            const nextIndex = pipelineHistoryIndex + 1
+            const snapshot = pipelineHistory[nextIndex]
+            set({
+                pipelineNodes: JSON.parse(JSON.stringify(snapshot.nodes)),
+                pipelineEdges: JSON.parse(JSON.stringify(snapshot.edges)),
+                pipelineHistoryIndex: nextIndex,
+            })
+        }
+    },
+    canUndoPipeline: () => get().pipelineHistoryIndex > 0,
+    canRedoPipeline: () => get().pipelineHistoryIndex < get().pipelineHistory.length - 1,
 
     // Pipeline execution
     isPipelineExecuting: false,

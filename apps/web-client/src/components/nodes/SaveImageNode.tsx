@@ -2,9 +2,10 @@
  * SaveImageNode - Node for saving/exporting processed images
  */
 
-import { memo } from 'react'
+import { memo, useState } from 'react'
 import { BaseNode } from './BaseNode'
 import { useAppStore } from '@/store/appStore'
+import { FolderPickerModal } from '@/components/FolderPickerModal'
 import type { SaveImageNodeData } from '@/types/nodeGraph'
 
 interface SaveImageNodeProps {
@@ -15,6 +16,7 @@ interface SaveImageNodeProps {
 
 function SaveImageNodeComponent({ id, data, selected }: SaveImageNodeProps) {
     const { updateNodeData } = useAppStore()
+    const [isPickerOpen, setIsPickerOpen] = useState(false)
 
     const handleFilenameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         updateNodeData(id, { filename: e.target.value })
@@ -33,15 +35,11 @@ function SaveImageNodeComponent({ id, data, selected }: SaveImageNodeProps) {
     }
 
     const handleBrowseFolder = () => {
-        // Note: Browser limitations prevent selecting an output folder directly.
-        // Users should type the path manually or we could use the FolderPickerModal
-        // for backend-powered folder browsing in the future.
-        // For now, just focus the input field
-        const input = document.querySelector(`input[data-node-id="${id}"]`) as HTMLInputElement
-        if (input) {
-            input.focus()
-            input.select()
-        }
+        setIsPickerOpen(true)
+    }
+
+    const handleFolderSelect = (path: string) => {
+        updateNodeData(id, { outputPath: path })
     }
 
     return (
@@ -101,6 +99,13 @@ function SaveImageNodeComponent({ id, data, selected }: SaveImageNodeProps) {
                     </select>
                 </div>
             </div>
+
+            <FolderPickerModal
+                isOpen={isPickerOpen}
+                onClose={() => setIsPickerOpen(false)}
+                onSelect={handleFolderSelect}
+                initialPath={data.outputPath || ''}
+            />
         </BaseNode>
     )
 }

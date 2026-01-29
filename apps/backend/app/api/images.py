@@ -71,25 +71,23 @@ def read_image_with_metadata(file_path: Path) -> tuple[np.ndarray, ImageMetadata
                 # Apply EXIF transpose (rotation)
                 pil_img = ImageOps.exif_transpose(pil_img)
                 
-                # Convert to numpy array (RGB -> BGR for OpenCV)
-                img_rgb = np.array(pil_img)
+                # Convert to numpy array (PIL is already RGB)
+                img = np.array(pil_img)
                 
-                # Handle grayscale
-                if len(img_rgb.shape) == 2:
-                    img = img_rgb
-                # Handle RGBA
-                elif img_rgb.shape[2] == 4:
-                    img = cv2.cvtColor(img_rgb, cv2.COLOR_RGBA2BGRA)
-                # Handle RGB
-                else:
-                    img = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2BGR)
-                    
         except ImportError:
             # Fallback if PIL not installed
-            img = cv2.imread(str(file_path), cv2.IMREAD_UNCHANGED)
+            img_bgr = cv2.imread(str(file_path), cv2.IMREAD_UNCHANGED)
+            if img_bgr is not None and len(img_bgr.shape) == 3:
+                img = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
+            else:
+                img = img_bgr
         except Exception:
              # Fallback on other errors
-            img = cv2.imread(str(file_path), cv2.IMREAD_UNCHANGED)
+            img_bgr = cv2.imread(str(file_path), cv2.IMREAD_UNCHANGED)
+            if img_bgr is not None and len(img_bgr.shape) == 3:
+                img = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
+            else:
+                img = img_bgr
     
     if img is None:
         raise ValueError("Could not read image file")
@@ -128,15 +126,18 @@ def convert_to_display_png(img: np.ndarray) -> bytes:
     else:
         img_8bit = img.astype(np.uint8)
     
-    # Convert grayscale to BGR for PNG encoding if needed
+    # Standardize to 3 channels (RGB) for display
     if len(img_8bit.shape) == 2:
-        img_8bit = cv2.cvtColor(img_8bit, cv2.COLOR_GRAY2BGR)
+        img_8bit = cv2.cvtColor(img_8bit, cv2.COLOR_GRAY2RGB)
     elif img_8bit.shape[2] == 4:
-        # RGBA to BGR
-        img_8bit = cv2.cvtColor(img_8bit, cv2.COLOR_RGBA2BGR)
+        # RGBA to RGB
+        img_8bit = cv2.cvtColor(img_8bit, cv2.COLOR_RGBA2RGB)
+    
+    # Convert RGB (internal) to BGR for cv2.imencode
+    save_bgr = cv2.cvtColor(img_8bit, cv2.COLOR_RGB2BGR)
     
     # Encode as PNG
-    success, buffer = cv2.imencode('.png', img_8bit)
+    success, buffer = cv2.imencode('.png', save_bgr)
     if not success:
         raise ValueError("Failed to encode image as PNG")
     
@@ -305,6 +306,25 @@ async def delete_image(image_id: str):
     return {"status": "deleted", "id": image_id}
 
 
+@router.delete("")
+async def delete_all_images():
+    """
+    Delete all uploaded and processed images.
+    """
+    global image_cache
+    
+    # Delete all files
+    for entry in image_cache.values():
+        file_path = entry["path"]
+        if file_path.exists():
+            file_path.unlink()
+    
+    # Clear cache
+    image_cache = {}
+    
+    return {"status": "all deleted"}
+
+
 @router.get("/{image_id}/histogram")
 async def get_image_histogram(image_id: str, bins: int = 256):
     """
@@ -331,8 +351,8 @@ async def get_image_histogram(image_id: str, bins: int = 256):
         hist = cv2.calcHist([img], [0], None, [bins], [0, 256])
         histograms["gray"] = hist.flatten().tolist()
     else:
-        # Color image (BGR)
-        channel_names = ["blue", "green", "red"]
+        # Color image (RGB)
+        channel_names = ["red", "green", "blue"]
         for i, name in enumerate(channel_names):
             hist = cv2.calcHist([img], [i], None, [bins], [0, 256])
             histograms[name] = hist.flatten().tolist()
@@ -373,7 +393,7 @@ async def get_image_statistics(image_id: str):
     # Calculate entropy (measure of randomness)
     # Use grayscale for entropy
     if len(img.shape) == 3:
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
     else:
         gray = img
     
@@ -394,7 +414,7 @@ async def get_image_statistics(image_id: str):
     # Per-channel statistics if color
     channel_stats = {}
     if len(img.shape) == 3:
-        channel_names = ["blue", "green", "red"]
+        channel_names = ["red", "green", "blue"]
         for i, name in enumerate(channel_names):
             channel = img_float[:, :, i]
             channel_stats[name] = {
