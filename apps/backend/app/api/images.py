@@ -154,8 +154,8 @@ async def list_images():
         results.append(UploadResponse(
             id=image_id,
             name=entry["original_name"],
-            url=f"http://localhost:8000/images/{image_id}/preview",
-            thumbnail_url=f"http://localhost:8000/images/{image_id}/thumbnail",
+            url=f"http://localhost:8001/images/{image_id}/preview",
+            thumbnail_url=f"http://localhost:8001/images/{image_id}/thumbnail",
             metadata=entry["metadata"],
             source_id=entry.get("source_id")
         ))
@@ -203,8 +203,8 @@ async def upload_image(file: UploadFile = File(...)):
         return UploadResponse(
             id=image_id,
             name=file.filename or "image",
-            url=f"http://localhost:8000/images/{image_id}/preview",
-            thumbnail_url=f"http://localhost:8000/images/{image_id}/thumbnail",
+            url=f"http://localhost:8001/images/{image_id}/preview",
+            thumbnail_url=f"http://localhost:8001/images/{image_id}/thumbnail",
             metadata=metadata
         )
         

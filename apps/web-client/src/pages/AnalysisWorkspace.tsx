@@ -560,7 +560,7 @@ export function AnalysisWorkspace() {
                                     })
                                 }
                                 try {
-                                    const res = await fetch(`http://localhost:8001/plugins/apply`, {
+                                    const res = await fetch(`http://localhost:8001/plugins/run`, {
                                         method: 'POST',
                                         headers: { 'Content-Type': 'application/json' },
                                         body: JSON.stringify({
@@ -600,7 +600,7 @@ export function AnalysisWorkspace() {
                                     })
                                 }
                                 try {
-                                    const res = await fetch(`http://localhost:8001/plugins/apply`, {
+                                    const res = await fetch(`http://localhost:8001/plugins/run`, {
                                         method: 'POST',
                                         headers: { 'Content-Type': 'application/json' },
                                         body: JSON.stringify({
@@ -667,7 +667,7 @@ export function AnalysisWorkspace() {
                                             })
                                         }
                                         try {
-                                            const res = await fetch(`http://localhost:8001/plugins/apply`, {
+                                            const res = await fetch(`http://localhost:8001/plugins/run`, {
                                                 method: 'POST',
                                                 headers: { 'Content-Type': 'application/json' },
                                                 body: JSON.stringify({

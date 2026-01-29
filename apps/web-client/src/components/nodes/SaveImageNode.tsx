@@ -33,19 +33,15 @@ function SaveImageNodeComponent({ id, data, selected }: SaveImageNodeProps) {
     }
 
     const handleBrowseFolder = () => {
-        // Browser folder picker using webkitdirectory 
-        const input = document.createElement('input')
-        input.type = 'file'
-        input.webkitdirectory = true
-        input.onchange = (e) => {
-            const files = (e.target as HTMLInputElement).files
-            if (files && files.length > 0) {
-                const pathParts = files[0].webkitRelativePath.split('/')
-                const folderName = pathParts[0]
-                updateNodeData(id, { outputPath: folderName })
-            }
+        // Note: Browser limitations prevent selecting an output folder directly.
+        // Users should type the path manually or we could use the FolderPickerModal
+        // for backend-powered folder browsing in the future.
+        // For now, just focus the input field
+        const input = document.querySelector(`input[data-node-id="${id}"]`) as HTMLInputElement
+        if (input) {
+            input.focus()
+            input.select()
         }
-        input.click()
     }
 
     return (
@@ -59,6 +55,7 @@ function SaveImageNodeComponent({ id, data, selected }: SaveImageNodeProps) {
                     <div className="flex gap-1">
                         <input
                             type="text"
+                            data-node-id={id}
                             value={data.outputPath || ''}
                             onChange={handleOutputPathChange}
                             placeholder="./output"
