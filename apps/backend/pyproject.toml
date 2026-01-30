@@ -17,6 +17,7 @@ tifffile = "^2024.1.30"
 scikit-image = "^0.22.0"
 scikit-learn = "^1.4.0"
 python-multipart = "^0.0.6"
+python-magic = "^0.4.27"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"
