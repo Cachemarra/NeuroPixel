@@ -204,6 +204,9 @@ export function NodePalette({ isOpen, onClose }: NodePaletteProps) {
 
     return (
         <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="node-palette-title"
             className={`absolute w-64 bg-surface-dark border border-border-dark rounded-lg shadow-xl z-10 flex flex-col overflow-hidden ${isDragging ? 'cursor-grabbing' : ''}`}
             style={{ left: position.x, top: position.y, maxHeight: 'calc(100vh - 150px)' }}
         >
@@ -214,12 +217,13 @@ export function NodePalette({ isOpen, onClose }: NodePaletteProps) {
             >
                 <div className="flex items-center gap-2">
                     <span className="material-symbols-outlined text-text-secondary text-[16px]">drag_indicator</span>
-                    <h3 className="text-sm font-semibold text-white">Add Node</h3>
+                    <h3 id="node-palette-title" className="text-sm font-semibold text-white">Add Node</h3>
                 </div>
                 <button
                     onClick={onClose}
                     onMouseDown={(e) => e.stopPropagation()}
                     className="p-1 text-text-secondary hover:text-white transition-colors"
+                    aria-label="Close node palette"
                 >
                     <span className="material-symbols-outlined text-[18px]">close</span>
                 </button>
@@ -236,6 +240,7 @@ export function NodePalette({ isOpen, onClose }: NodePaletteProps) {
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         placeholder="Search nodes..."
+                        aria-label="Search nodes"
                         className="w-full bg-background-dark border border-border-dark rounded pl-8 pr-3 py-1.5 text-xs text-white placeholder:text-text-secondary"
                     />
                 </div>
