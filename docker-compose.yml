@@ -5,8 +5,8 @@ services:
     build:
       context: ./apps/backend
       dockerfile: Dockerfile
-    image: neuropixel-backend:dev
-    container_name: neuropixel-backend
+    image: lumagraph-backend:dev
+    container_name: lumagraph-backend
     ports:
       - "8000:8000"
     volumes:
@@ -17,7 +17,7 @@ services:
       - PYTHONUNBUFFERED=1
     command: poetry run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -26,8 +26,8 @@ services:
     build:
       context: ./apps/web-client
       dockerfile: Dockerfile
-    image: neuropixel-web:dev
-    container_name: neuropixel-web
+    image: lumagraph-web:dev
+    container_name: lumagraph-web
     ports:
       - "5173:5173"
     volumes:

@@ -86,7 +86,7 @@ function Header({ isConnected, gpuActive, activeView, setActiveView }: HeaderPro
                             <path d="M4 4H17.3334V17.3334H30.6666V30.6666H44V44H4V4Z"></path>
                         </svg>
                     </div>
-                    <h2 className="text-white text-base font-bold tracking-tight select-none">NeuroPixel</h2>
+                    <h2 className="text-white text-base font-bold tracking-tight select-none">LumaGraph</h2>
                 </div>
 
                 <div className="h-4 w-px bg-border-dark mx-2"></div>
@@ -191,7 +191,7 @@ function Header({ isConnected, gpuActive, activeView, setActiveView }: HeaderPro
                         <div className="absolute top-full right-0 mt-2 w-48 bg-surface-dark border border-border-dark rounded-md shadow-xl z-50 py-1">
                             <div className="px-4 py-3 border-b border-border-dark">
                                 <p className="text-sm font-medium text-white">Luis N</p>
-                                <p className="text-xs text-text-secondary truncate">luis@neuropixel.ai</p>
+                                <p className="text-xs text-text-secondary truncate">luis@lumagraph.ai</p>
                             </div>
                             <div className="py-1">
                                 <button className="w-full text-left px-4 py-2 text-xs text-text-secondary hover:text-white hover:bg-panel-dark flex items-center gap-2">

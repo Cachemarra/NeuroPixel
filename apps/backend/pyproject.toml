@@ -1,8 +1,8 @@
 [tool.poetry]
-name = "neuropixel-backend"
+name = "lumagraph-backend"
 version = "0.1.0"
-description = "NeuroPixel - Scientific Image Analysis Backend"
-authors = ["NeuroPixel Team"]
+description = "LumaGraph - Scientific Image Analysis Backend"
+authors = ["LumaGraph Team"]
 readme = "README.md"
 packages = [{include = "app"}]
 

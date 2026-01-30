@@ -31,7 +31,7 @@ class BatchRunRequest(BaseModel):
     """Request to start a batch processing job."""
     source_image_ids: List[str] = []
     pipeline_steps: List[PipelineStep]
-    output_folder: str = "/tmp/neuropixel_batch_output"
+    output_folder: str = "/tmp/lumagraph_batch_output"
     input_folder: Optional[str] = None
 
 

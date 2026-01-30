@@ -24,7 +24,7 @@ export function BatchProgressModal() {
 
     const [isRunning, setIsRunning] = useState(false)
     const [jobId, setJobId] = useState<string | null>(null)
-    const [outputFolder, setOutputFolder] = useState('/tmp/neuropixel_batch_output')
+    const [outputFolder, setOutputFolder] = useState('/tmp/lumagraph_batch_output')
     const [inputMode, setInputMode] = useState<'list' | 'folder'>('list')
     const [inputFolder, setInputFolder] = useState(batchInputFolder)
     const [error, setError] = useState<string | null>(null)

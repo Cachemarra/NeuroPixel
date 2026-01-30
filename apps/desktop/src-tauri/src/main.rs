@@ -1,8 +1,8 @@
-// NeuroPixel Desktop - Tauri v2 Application
+// LumaGraph Desktop - Tauri v2 Application
 // Wraps the React web-client and manages the Python sidecar
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    neuropixel_lib::run()
+    lumagraph_lib::run()
 }

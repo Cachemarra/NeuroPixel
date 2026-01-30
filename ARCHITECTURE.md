@@ -1,7 +1,7 @@
-# ARCHITECTURE.md - NeuroPixel
+# ARCHITECTURE.md - LumaGraph
 
 ## 1. Project Overview
-NeuroPixel is a high-performance, local-first Scientific Image Analysis Workstation. It allows Computer Vision Engineers to visualize, process, and compare high-resolution images using advanced algorithms.
+LumaGraph is a high-performance, local-first Scientific Image Analysis Workstation. It allows Computer Vision Engineers to visualize, process, and compare high-resolution images using advanced algorithms.
 
 **Key Characteristics:**
 * **Hybrid Architecture:** Combines a modern React UI with a robust Python Computer Vision backend.
@@ -41,7 +41,7 @@ NeuroPixel is a high-performance, local-first Scientific Image Analysis Workstat
 The project follows a strict Monorepo structure to share code between Desktop and Web builds.
 
 ```text
-neuropixel/
+lumagraph/
 ├── apps/
 │   ├── desktop/            # Tauri Application (Rust)
 │   │   ├── src-tauri/      # Rust Config & Sidecar logic

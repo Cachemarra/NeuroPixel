@@ -24,7 +24,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="NeuroPixel",
+    title="LumaGraph",
     description="Scientific Image Analysis Workstation API",
     version="0.1.0",
     lifespan=lifespan,
@@ -59,4 +59,4 @@ async def health_check():
 @app.get("/")
 async def root():
     """Root endpoint."""
-    return {"message": "NeuroPixel API", "docs": "/docs"}
+    return {"message": "LumaGraph API", "docs": "/docs"}

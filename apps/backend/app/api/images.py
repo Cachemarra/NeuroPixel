@@ -17,7 +17,7 @@ from skimage.metrics import structural_similarity as ssim
 router = APIRouter(prefix="/images", tags=["images"])
 
 # Storage for uploaded images (in-memory cache + disk)
-UPLOAD_DIR = Path("/tmp/neuropixel_uploads")
+UPLOAD_DIR = Path("/tmp/lumagraph_uploads")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 # In-memory image cache: id -> {path, metadata, original_name, source_id, ...}

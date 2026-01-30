@@ -22,7 +22,7 @@ export function AboutModal() {
                                 </svg>
                             </div>
                         </div>
-                        <h1 className="text-2xl font-bold text-white tracking-tight">NeuroPixel</h1>
+                        <h1 className="text-2xl font-bold text-white tracking-tight">LumaGraph</h1>
                         <p className="text-xs text-text-secondary font-mono">v2.4.1-beta</p>
                     </div>
                     <button
@@ -45,7 +45,7 @@ export function AboutModal() {
                     </div>
 
                     <a
-                        href="https://github.com/neuropixel/neuropixel"
+                        href="https://github.com/lumagraph/lumagraph"
                         target="_blank"
                         rel="noreferrer"
                         className="inline-flex items-center gap-2 px-4 py-2 bg-panel-dark hover:bg-border-dark border border-border-dark rounded text-xs text-white transition-all hover:scale-105"
@@ -58,7 +58,7 @@ export function AboutModal() {
                 {/* Footer */}
                 <div className="bg-panel-dark p-3 text-center border-t border-border-dark">
                     <p className="text-[10px] text-text-secondary">
-                        © 2026 NeuroPixel AI. All rights reserved.
+                        © 2026 LumaGraph AI. All rights reserved.
                     </p>
                 </div>
             </div>

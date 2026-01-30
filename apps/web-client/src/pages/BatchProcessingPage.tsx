@@ -42,7 +42,7 @@ function BatchProcessingContent() {
     const [batchImages, setBatchImages] = useState<BatchImage[]>([])
     const [selectedImageId, setSelectedImageId] = useState<string | null>(null)
     const [previewUrl, setPreviewUrl] = useState<string | null>(null)
-    const [outputFolder, setOutputFolder] = useState('/tmp/neuropixel_batch_output')
+    const [outputFolder, setOutputFolder] = useState('/tmp/lumagraph_batch_output')
     const [progress, setProgress] = useState<BatchProgress>({
         current: 0,
         total: 0,

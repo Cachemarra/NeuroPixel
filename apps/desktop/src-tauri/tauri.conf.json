@@ -1,8 +1,8 @@
 {
     "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/tauri-v2.5.0/crates/tauri-cli/schema.json",
-    "productName": "NeuroPixel",
+    "productName": "LumaGraph",
     "version": "0.1.0",
-    "identifier": "com.neuropixel.app",
+    "identifier": "com.lumagraph.app",
     "build": {
         "beforeDevCommand": "cd ../web-client && npm run dev",
         "devUrl": "http://localhost:5173",
@@ -13,7 +13,7 @@
         "withGlobalTauri": true,
         "windows": [
             {
-                "title": "NeuroPixel - Scientific Image Analysis",
+                "title": "LumaGraph - Scientific Image Analysis",
                 "width": 1400,
                 "height": 900,
                 "minWidth": 1200,

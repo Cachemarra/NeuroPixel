@@ -1,6 +1,6 @@
-# NeuroPixel Backend
+# LumaGraph Backend
 
-Python/FastAPI backend for the NeuroPixel Scientific Image Analysis Workstation.
+Python/FastAPI backend for the LumaGraph Scientific Image Analysis Workstation.
 
 ## Setup
 

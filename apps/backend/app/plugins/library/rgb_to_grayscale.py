@@ -4,10 +4,10 @@ Converts color images to grayscale using various methods.
 """
 import cv2
 import numpy as np
-from app.plugins.base import NeuroPixelPlugin, plugin_param
+from app.plugins.base import LumaGraphPlugin, plugin_param
 
 
-class RGBToGrayscale(NeuroPixelPlugin):
+class RGBToGrayscale(LumaGraphPlugin):
     """
     Converts RGB images to grayscale using various methods.
     """

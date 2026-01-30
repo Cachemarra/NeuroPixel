@@ -65,7 +65,7 @@ const menus: Menu[] = [
         items: [
             { label: 'Keyboard Shortcuts', action: commands.help.shortcuts },
             { separator: true, label: '' },
-            { label: 'About NeuroPixel', action: commands.help.about },
+            { label: 'About LumaGraph', action: commands.help.about },
         ],
     },
 ]
@@ -102,8 +102,8 @@ export function AppMenuBar() {
                 <div key={menu.label} className="relative">
                     <button
                         className={`px-2 py-1 text-xs font-medium rounded-sm transition-colors ${openMenu === menu.label
-                                ? 'bg-primary/20 text-white'
-                                : 'text-text-secondary hover:text-white hover:bg-panel-dark'
+                            ? 'bg-primary/20 text-white'
+                            : 'text-text-secondary hover:text-white hover:bg-panel-dark'
                             }`}
                         onClick={() => handleMenuClick(menu.label)}
                         onMouseEnter={() => openMenu && setOpenMenu(menu.label)}
@@ -121,8 +121,8 @@ export function AppMenuBar() {
                                     <button
                                         key={item.label}
                                         className={`w-full flex items-center justify-between px-3 py-1.5 text-xs transition-colors ${item.disabled
-                                                ? 'text-text-secondary/50 cursor-not-allowed'
-                                                : 'text-white hover:bg-primary/20'
+                                            ? 'text-text-secondary/50 cursor-not-allowed'
+                                            : 'text-white hover:bg-primary/20'
                                             }`}
                                         onClick={() => handleItemClick(item)}
                                         disabled={item.disabled}

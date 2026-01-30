@@ -1,12 +1,12 @@
 [package]
-name = "neuropixel-desktop"
+name = "lumagraph-desktop"
 version = "0.1.0"
-description = "NeuroPixel Desktop Application"
-authors = ["NeuroPixel Team"]
+description = "LumaGraph Desktop Application"
+authors = ["LumaGraph Team"]
 edition = "2021"
 
 [lib]
-name = "neuropixel_lib"
+name = "lumagraph_lib"
 crate-type = ["lib", "cdylib", "staticlib"]
 
 [build-dependencies]
