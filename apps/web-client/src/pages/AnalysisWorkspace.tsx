@@ -581,8 +581,23 @@ export function AnalysisWorkspace() {
                                 <span className="material-symbols-outlined text-[20px]">fit_screen</span>
                             </button>
                             <div className="w-px bg-border-dark my-1"></div>
-                            <button className="p-2 hover:bg-panel-dark text-primary hover:text-blue-400 bg-primary/10 rounded-sm transition-colors" title="ROI Selection">
-                                <span className="material-symbols-outlined text-[20px]">crop_free</span>
+                            {/* ROI / Crop Button */}
+                            <button
+                                onClick={() => {
+                                    // Find and activate crop plugin
+                                    const cropPlugin = Object.values(categories).flat().find(p => p.name === 'crop')
+                                    if (cropPlugin) {
+                                        setActivePlugin(cropPlugin)
+                                        setOpenCategory(cropPlugin.category)
+                                    }
+                                }}
+                                className={`p-2 rounded-sm transition-colors ${activePlugin?.name === 'crop'
+                                    ? 'bg-primary/20 text-primary hover:text-blue-400'
+                                    : 'hover:bg-panel-dark text-text-secondary hover:text-white'
+                                    }`}
+                                title="Crop Image"
+                            >
+                                <span className="material-symbols-outlined text-[20px]">crop</span>
                             </button>
                             <div className="w-px bg-border-dark my-1"></div>
                             {/* Flip Transform Buttons */}

@@ -284,6 +284,8 @@ async def get_image_metadata(image_id: str):
     return {
         "id": image_id,
         "name": cache_entry["original_name"],
+        "url": f"http://localhost:8001/images/{image_id}/preview",
+        "thumbnail_url": f"http://localhost:8001/images/{image_id}/thumbnail",
         "metadata": cache_entry["metadata"],
         "source_id": cache_entry.get("source_id")
     }

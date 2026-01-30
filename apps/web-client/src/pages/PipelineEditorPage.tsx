@@ -323,10 +323,10 @@ function PipelineEditorContent() {
 
                     // Update the preview URL for this node
                     if (currentImageId) {
-                        const imgResponse = await fetch(`http://localhost:8001/images/${currentImageId}`)
+                        const imgResponse = await fetch(`http://localhost:8001/images/${currentImageId}/metadata`)
                         if (imgResponse.ok) {
                             const imgData = await imgResponse.json()
-                            updateNodeData(node.id, { previewUrl: imgData.url })
+                            updateNodeData(node.id, { previewUrl: imgData.url || `http://localhost:8001/images/${currentImageId}/preview` })
                         }
                     }
                     stepCount++

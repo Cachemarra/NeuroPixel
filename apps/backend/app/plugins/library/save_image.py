@@ -13,15 +13,8 @@ from app.core.plugin_spec import (
     BaseParam,
     SelectParam,
     SelectOption,
+    StringParam,
 )
-
-# Custom parameter type for string path since BaseParam is abstract and no StringParam exists
-# We'll use a trick or just use the generic one if we can.
-# Looking at core/plugin_spec.py, there's no StringParam. I should probably add one or use a dummy.
-# Wait, I'll check if I can just use a simple class.
-class StringParam(BaseParam):
-    type: str = "string"
-    default: str = ""
 
 SPEC = PluginSpec(
     name="save_image",

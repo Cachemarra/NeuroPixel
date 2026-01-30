@@ -66,8 +66,14 @@ class RangeParam(BaseParam):
     step: float = 0.01
 
 
+class StringParam(BaseParam):
+    """Text/string parameter."""
+    type: Literal["string"] = "string"
+    default: str = ""
+
+
 # Union of all parameter types
-PluginParam = Union[FloatParam, IntParam, BoolParam, SelectParam, RangeParam]
+PluginParam = Union[FloatParam, IntParam, BoolParam, SelectParam, RangeParam, StringParam]
 
 
 # =============================================================================
