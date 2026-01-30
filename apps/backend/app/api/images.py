@@ -226,6 +226,13 @@ async def get_image_preview(image_id: str):
         raise HTTPException(status_code=404, detail="Image not found")
     
     cache_entry = image_cache[image_id]
+
+    # Check if preview bytes are already cached
+    # Optimization: Return cached PNG if available to avoid reprocessing and potential disk I/O
+    # Note: This increases memory usage by storing the PNG bytes in addition to the numpy array.
+    if "preview_bytes" in cache_entry:
+        return Response(content=cache_entry["preview_bytes"], media_type="image/png")
+
     img = cache_entry.get("image")
     
     # If not in memory, reload from disk
@@ -238,6 +245,9 @@ async def get_image_preview(image_id: str):
     # Convert to displayable PNG
     png_bytes = convert_to_display_png(img)
     
+    # Cache the result
+    cache_entry["preview_bytes"] = png_bytes
+
     return Response(content=png_bytes, media_type="image/png")
 
 

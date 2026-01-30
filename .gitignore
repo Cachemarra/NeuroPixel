@@ -16,6 +16,7 @@ Thumbs.db
 .settings/
 .nbproject/
 .history/
+.jules/
 
 # Node.js
 node_modules/
