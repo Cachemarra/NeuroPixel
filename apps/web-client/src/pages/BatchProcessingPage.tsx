@@ -179,7 +179,7 @@ function BatchProcessingContent() {
         const sortedNodes = [...pipelineNodes].sort((a, b) => a.position.x - b.position.x)
 
         const backendSteps = sortedNodes
-            .filter(node => node.type === 'operator' || node.type === 'save_image')
+            .filter(node => node.type === 'operator' || node.type === 'save_image' || node.type === 'save_batch')
             .map(node => {
                 if (node.type === 'operator') {
                     const d = node.data as any
@@ -195,6 +195,17 @@ function BatchProcessingContent() {
                         params: {
                             output_path: d.outputPath || outputFolder,
                             filename: d.filename || 'batch_result',
+                            format: d.format || 'png'
+                        },
+                        active: true
+                    }
+                } else if (node.type === 'save_batch') {
+                    const d = node.data as any
+                    return {
+                        plugin_name: 'save_batch',
+                        params: {
+                            output_folder: d.output_folder || outputFolder,
+                            filename_prefix: d.filename_prefix || '',
                             format: d.format || 'png'
                         },
                         active: true
@@ -333,16 +344,38 @@ function BatchProcessingContent() {
                     {/* Output folder */}
                     <div>
                         <label className="text-xs text-text-secondary block mb-1">Output Folder</label>
-                        <input
-                            type="text"
-                            value={outputFolder}
-                            onChange={(e) => setOutputFolder(e.target.value)}
-                            className="w-full bg-background-dark border border-border-dark rounded px-3 py-2 text-xs text-white font-mono"
-                            placeholder="/path/to/output"
-                        />
+                        <div className="flex gap-1 mb-2">
+                            <input
+                                type="text"
+                                value={outputFolder}
+                                onChange={(e) => setOutputFolder(e.target.value)}
+                                className="flex-1 bg-background-dark border border-border-dark rounded px-3 py-2 text-xs text-white font-mono"
+                                placeholder="/path/to/output"
+                            />
+                            <button
+                                onClick={async () => {
+                                    try {
+                                        const response = await fetch(`${API_BASE}/system/pick-directory`)
+                                        const data = await response.json()
+                                        if (data.success && data.path) {
+                                            setOutputFolder(data.path)
+                                        } else if (data.message) {
+                                            alert(data.message)
+                                        }
+                                    } catch (err) {
+                                        console.log('Error picking directory:', err)
+                                        alert('Could not open native dialog. Is the backend running?')
+                                    }
+                                }}
+                                className="px-3 bg-panel-dark border border-border-dark rounded text-white hover:bg-border-dark transition-colors"
+                                title="Select Output Folder"
+                            >
+                                <span className="material-symbols-outlined text-[16px]">folder_open</span>
+                            </button>
+                        </div>
                     </div>
 
-                    {/* Execute button */}
+                    {/* Execute content... */}
                     <button
                         onClick={handleExecute}
                         disabled={batchImages.length === 0 || !hasWorkflow || progress.status === 'running'}
@@ -361,7 +394,7 @@ function BatchProcessingContent() {
                         )}
                     </button>
 
-                    {/* Progress */}
+                    {/* Progress details... */}
                     {progress.status === 'running' && (
                         <div className="space-y-1">
                             <div className="flex justify-between text-xs text-text-secondary">
@@ -377,7 +410,6 @@ function BatchProcessingContent() {
                         </div>
                     )}
 
-                    {/* Status */}
                     {progress.status === 'completed' && (
                         <div className="flex items-center gap-2 text-green-400 text-sm">
                             <span className="material-symbols-outlined text-[18px]">check_circle</span>
@@ -397,6 +429,7 @@ function BatchProcessingContent() {
             <div className="flex-1 flex flex-col">
                 {/* Workflow Viewer */}
                 <div className="flex-1 relative">
+                    {/* ... React Flow viewer ... */}
                     <div className="absolute top-3 left-3 z-10 bg-surface-dark/90 backdrop-blur-sm px-3 py-1.5 rounded border border-border-dark">
                         <span className="text-xs text-text-secondary">Workflow: </span>
                         <span className="text-xs text-white font-medium">{pipelineName || 'Untitled'}</span>

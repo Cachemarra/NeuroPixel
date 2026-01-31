@@ -165,3 +165,49 @@ async def reload_plugins():
         success=True,
         plugins_loaded=count
     )
+
+@router.get("/pick-directory")
+async def pick_directory():
+    """
+    Open a native OS directory picker dialog.
+    This works when the backend is running on the same machine as the user.
+    """
+    import platform
+    import subprocess
+    from pathlib import Path
+
+    try:
+        # Try Tkinter first as it's standard Python
+        try:
+            import tkinter as tk
+            from tkinter import filedialog
+            root = tk.Tk()
+            root.withdraw()
+            root.attributes('-topmost', True)
+            directory = filedialog.askdirectory()
+            root.destroy()
+            if directory:
+                return {"success": True, "path": directory}
+        except Exception:
+            # Fallback to shell commands if tkinter fails
+            system = platform.system()
+            if system == "Linux":
+                # Try Zenity
+                try:
+                    proc = subprocess.run(['zenity', '--file-selection', '--directory', '--title=Select Output Folder'], 
+                                       capture_output=True, text=True, timeout=60)
+                    if proc.returncode == 0:
+                        return {"success": True, "path": proc.stdout.strip()}
+                except FileNotFoundError:
+                    # Try KDialog
+                    try:
+                        proc = subprocess.run(['kdialog', '--getexistingdirectory'], 
+                                           capture_output=True, text=True, timeout=60)
+                        if proc.returncode == 0:
+                            return {"success": True, "path": proc.stdout.strip()}
+                    except FileNotFoundError:
+                        pass
+        
+        return {"success": False, "message": "Could not open native dialog. Please type manually."}
+    except Exception as e:
+        return {"success": False, "message": str(e)}

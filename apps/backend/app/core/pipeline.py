@@ -48,12 +48,13 @@ class Pipeline:
         """
         self.steps = steps
     
-    def execute(self, image: np.ndarray) -> tuple[np.ndarray, PipelineExecutionResult]:
+    def execute(self, image: np.ndarray, **kwargs) -> tuple[np.ndarray, PipelineExecutionResult]:
         """
         Execute the pipeline on an input image.
         
         Args:
             image: Input image as numpy array
+            **kwargs: Additional parameters passed to all plugins (e.g., original_filename)
             
         Returns:
             Tuple of (processed_image, execution_result)
@@ -78,7 +79,8 @@ class Pipeline:
                 result_image, exec_time = plugin_manager.execute(
                     step.plugin_name,
                     current_image,
-                    step.params
+                    step.params,
+                    **kwargs
                 )
                 current_image = result_image
                 total_time += exec_time

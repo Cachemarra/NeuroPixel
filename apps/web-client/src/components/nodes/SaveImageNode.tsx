@@ -2,10 +2,9 @@
  * SaveImageNode - Node for saving/exporting processed images
  */
 
-import { memo, useState } from 'react'
+import { memo } from 'react'
 import { BaseNode } from './BaseNode'
 import { useAppStore } from '@/store/appStore'
-import { FolderPickerModal } from '@/components/FolderPickerModal'
 import type { SaveImageNodeData } from '@/types/nodeGraph'
 
 interface SaveImageNodeProps {
@@ -16,7 +15,6 @@ interface SaveImageNodeProps {
 
 function SaveImageNodeComponent({ id, data, selected }: SaveImageNodeProps) {
     const { updateNodeData } = useAppStore()
-    const [isPickerOpen, setIsPickerOpen] = useState(false)
 
     const handleFilenameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         updateNodeData(id, { filename: e.target.value })
@@ -32,10 +30,6 @@ function SaveImageNodeComponent({ id, data, selected }: SaveImageNodeProps) {
 
     const handleToggleCollapse = () => {
         updateNodeData(id, { collapsed: !data.collapsed })
-    }
-
-    const handleBrowseFolder = () => {
-        setIsPickerOpen(true)
     }
 
     const handleFolderSelect = (path: string) => {
@@ -60,9 +54,22 @@ function SaveImageNodeComponent({ id, data, selected }: SaveImageNodeProps) {
                             className="flex-1 bg-background-dark border border-border-dark rounded px-2 py-1.5 text-xs text-white"
                         />
                         <button
-                            onClick={handleBrowseFolder}
-                            className="px-2 py-1.5 bg-panel-dark border border-border-dark rounded text-[10px] text-white hover:bg-border-dark transition-colors"
-                            title="Browse folder"
+                            onClick={async () => {
+                                try {
+                                    const response = await fetch('http://localhost:8005/system/pick-directory')
+                                    const data = await response.json()
+                                    if (data.success && data.path) {
+                                        handleFolderSelect(data.path)
+                                    } else if (data.message) {
+                                        alert(data.message)
+                                    }
+                                } catch (err) {
+                                    console.log('Error picking directory:', err)
+                                    alert('Could not open native dialog. Is the backend running?')
+                                }
+                            }}
+                            className="px-2 py-1.5 bg-panel-dark border border-border-dark rounded text-[10px] text-white hover:bg-border-dark transition-colors flex items-center h-full"
+                            title="Select Output Folder"
                         >
                             <span className="material-symbols-outlined text-[14px]">folder_open</span>
                         </button>
@@ -78,7 +85,7 @@ function SaveImageNodeComponent({ id, data, selected }: SaveImageNodeProps) {
                         type="text"
                         value={data.filename}
                         onChange={handleFilenameChange}
-                        placeholder="output"
+                        placeholder="result"
                         className="w-full bg-background-dark border border-border-dark rounded px-2 py-1.5 text-xs text-white"
                     />
                 </div>
@@ -99,13 +106,6 @@ function SaveImageNodeComponent({ id, data, selected }: SaveImageNodeProps) {
                     </select>
                 </div>
             </div>
-
-            <FolderPickerModal
-                isOpen={isPickerOpen}
-                onClose={() => setIsPickerOpen(false)}
-                onSelect={handleFolderSelect}
-                initialPath={data.outputPath || ''}
-            />
         </BaseNode>
     )
 }

@@ -111,6 +111,7 @@ class PluginManager:
         plugin_name: str,
         image: np.ndarray,
         params: Dict[str, Any],
+        **kwargs,
     ) -> tuple[np.ndarray, float]:
         """
         Execute a plugin on an image.
@@ -131,7 +132,7 @@ class PluginManager:
             raise ValueError(f"Plugin not found: {plugin_name}")
         
         start_time = time.perf_counter()
-        result = plugin.run(image, **params)
+        result = plugin.run(image, **params, **kwargs)
         execution_time = (time.perf_counter() - start_time) * 1000
         
         return result, execution_time

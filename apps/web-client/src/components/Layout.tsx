@@ -117,15 +117,6 @@ function Header({ isConnected, gpuActive, activeView, setActiveView }: HeaderPro
                         Compare
                     </button>
                     <button
-                        className={`px-3 py-1 text-xs font-medium rounded-sm transition-colors ${activeView === 'pipeline'
-                            ? 'bg-primary text-white shadow-sm'
-                            : 'text-text-secondary hover:text-white hover:bg-panel-dark'
-                            }`}
-                        onClick={() => setActiveView('pipeline')}
-                    >
-                        Pipeline
-                    </button>
-                    <button
                         className={`px-3 py-1 text-xs font-medium rounded-sm transition-colors ${activeView === 'batch'
                             ? 'bg-primary text-white shadow-sm'
                             : 'text-text-secondary hover:text-white hover:bg-panel-dark'
@@ -133,6 +124,15 @@ function Header({ isConnected, gpuActive, activeView, setActiveView }: HeaderPro
                         onClick={() => setActiveView('batch')}
                     >
                         Batch
+                    </button>
+                    <button
+                        className={`px-3 py-1 text-xs font-medium rounded-sm transition-colors ${activeView === 'pipeline'
+                            ? 'bg-primary text-white shadow-sm'
+                            : 'text-text-secondary hover:text-white hover:bg-panel-dark'
+                            }`}
+                        onClick={() => setActiveView('pipeline')}
+                    >
+                        Pipeline
                     </button>
                 </div>
 

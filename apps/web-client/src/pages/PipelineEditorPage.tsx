@@ -633,235 +633,306 @@ function PipelineEditorContent() {
                 </div>
             </div>
 
-            {/* Pipeline Execution Progress Bar */}
-            {isPipelineExecuting && (
-                <div className="px-4 py-2 bg-panel-dark border-b border-border-dark">
-                    <div className="flex items-center gap-3">
-                        <span className="material-symbols-outlined text-primary animate-spin text-[18px]">progress_activity</span>
-                        <div className="flex-1">
-                            <div className="text-xs text-white mb-1">{pipelineExecutionStatus}</div>
-                            <div className="w-full bg-background-dark rounded-full h-1.5 overflow-hidden">
-                                <div
-                                    className="bg-primary h-full rounded-full transition-all duration-300"
-                                    style={{ width: `${pipelineExecutionProgress}%` }}
-                                />
+            {/* Main Content Area with Sidebar */}
+            <div className="flex-1 flex overflow-hidden">
+                {/* Left Sidebar */}
+                <aside className="w-[300px] bg-surface-dark border-r border-border-dark flex flex-col shrink-0 z-10">
+                    <div className="px-4 py-3 border-b border-border-dark bg-panel-dark">
+                        <h3 className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
+                            Input & Summary
+                        </h3>
+                    </div>
+
+                    {/* Input Folder Selection - For Pipeline Context */}
+                    <div className="p-4 border-b border-border-dark space-y-2">
+                        <label className="text-xs text-text-secondary font-medium block">
+                            Input Context
+                        </label>
+                        <div className="flex items-center gap-2 p-2 bg-background-dark rounded border border-border-dark">
+                            <span className="material-symbols-outlined text-text-secondary">folder_open</span>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-xs text-white truncate">Use Active Image</p>
+                                <p className="text-[10px] text-text-secondary">or connect Load Image node</p>
                             </div>
                         </div>
-                        <span className="text-xs text-text-secondary font-mono">{Math.round(pipelineExecutionProgress)}%</span>
                     </div>
-                </div>
-            )}
 
-            {/* React Flow Canvas */}
-            <div className="flex-1 relative" ref={reactFlowWrapper}>
-                <ReactFlow
-                    nodes={pipelineNodes}
-                    edges={pipelineEdges}
-                    onNodesChange={onNodesChange}
-                    onEdgesChange={onEdgesChange}
-                    onConnect={handleConnect}
-                    onPaneContextMenu={handlePaneContextMenu}
-                    onNodeContextMenu={handleNodeContextMenu}
-                    nodeTypes={nodeTypes}
-                    fitView
-                    snapToGrid
-                    snapGrid={[20, 20]}
-                    defaultEdgeOptions={{
-                        type: 'smoothstep',
-                        animated: true,
-                        style: { stroke: '#6366f1', strokeWidth: 2 },
-                    }}
-                    proOptions={{ hideAttribution: true }}
-                    className="bg-background-dark"
-                >
-                    <Background
-                        variant={BackgroundVariant.Dots}
-                        gap={20}
-                        size={1}
-                        color="#3f3f46"
-                    />
-                    <Controls
-                        className="!bg-surface-dark !border-border-dark !shadow-lg"
-                        showZoom
-                        showFitView
-                        showInteractive
-                    />
-                    <MiniMap
-                        className="!bg-surface-dark !border-border-dark"
-                        nodeColor={(node) => {
-                            switch (node.type) {
-                                case 'load_image':
-                                    return '#10b981'
-                                case 'save_image':
-                                    return '#3b82f6'
-                                case 'preview':
-                                    return '#8b5cf6'
-                                case 'markdown_note':
-                                    return '#f59e0b'
-                                case 'operator':
-                                    return '#6366f1'
-                                default:
-                                    return '#6b7280'
-                            }
-                        }}
-                        maskColor="rgba(0, 0, 0, 0.7)"
-                    />
-
-                    {/* Empty State */}
-                    {pipelineNodes.length === 0 && (
-                        <Panel position="top-center" className="mt-20">
-                            <div className="text-center bg-surface-dark/90 backdrop-blur-sm border border-border-dark rounded-lg px-8 py-6">
-                                <span className="material-symbols-outlined text-5xl text-text-secondary/30">
-                                    account_tree
-                                </span>
-                                <p className="text-white mt-3 font-medium">Start building your workflow</p>
-                                <p className="text-text-secondary text-sm mt-1">
-                                    Right-click anywhere to add nodes, or use the "Add Node" button
-                                </p>
-                                <button
-                                    onClick={() => setIsPaletteOpen(true)}
-                                    className="mt-4 flex items-center gap-2 mx-auto bg-primary hover:bg-blue-600 text-white px-4 py-2 rounded text-sm font-semibold transition-colors"
-                                >
-                                    <span className="material-symbols-outlined text-[18px]">add_circle</span>
-                                    <span>Add Node</span>
-                                </button>
+                    {/* Pipeline Summary / Node List */}
+                    <div className="flex-1 overflow-y-auto p-2">
+                        <h4 className="px-2 text-[10px] uppercase font-bold text-text-secondary mb-2 mt-2">Pipeline Steps</h4>
+                        {pipelineNodes.length === 0 ? (
+                            <div className="text-center py-8 text-text-secondary/50">
+                                <p className="text-xs">No nodes added</p>
                             </div>
-                        </Panel>
+                        ) : (
+                            <div className="space-y-1">
+                                {pipelineNodes
+                                    .sort((a, b) => a.position.x - b.position.x) // Sort visually by X
+                                    .map((node, index) => (
+                                        <div
+                                            key={node.id}
+                                            className="flex items-center gap-2 p-2 bg-panel-dark hover:bg-white/5 rounded border border-border-dark transition-colors group"
+                                            onMouseEnter={() => {
+                                                // Highlight node on hover (optional enhancement)
+                                                // This would require state like "hoveredNodeId"
+                                            }}
+                                        >
+                                            <div className="text-xs font-mono text-text-secondary w-4 text-center">{index + 1}</div>
+                                            <span className={`material-symbols-outlined text-[16px] ${node.type === 'load_image' ? 'text-green-500' :
+                                                node.type === 'save_image' ? 'text-blue-500' :
+                                                    node.type === 'operator' ? 'text-indigo-500' : 'text-text-secondary'
+                                                }`}>
+                                                {node.data.icon as string || 'circle'}
+                                            </span>
+                                            <span className={`text-xs truncate flex-1 ${node.data.disabled ? 'text-text-secondary line-through' : 'text-white'}`}>
+                                                {node.data.label as string}
+                                            </span>
+                                            <button
+                                                onClick={() => removeNode(node.id)}
+                                                className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-400 text-text-secondary transition-opacity"
+                                            >
+                                                <span className="material-symbols-outlined text-[14px]">close</span>
+                                            </button>
+                                        </div>
+                                    ))}
+                            </div>
+                        )}
+                    </div>
+                </aside>
+
+                {/* React Flow Canvas Container */}
+                <div className="flex-1 relative flex flex-col h-full min-w-0">
+                    {/* Progress Bar (moved here inside canvas container) */}
+                    {isPipelineExecuting && (
+                        <div className="px-4 py-2 bg-panel-dark border-b border-border-dark">
+                            <div className="flex items-center gap-3">
+                                <span className="material-symbols-outlined text-primary animate-spin text-[18px]">progress_activity</span>
+                                <div className="flex-1">
+                                    <div className="text-xs text-white mb-1">{pipelineExecutionStatus}</div>
+                                    <div className="w-full bg-background-dark rounded-full h-1.5 overflow-hidden">
+                                        <div
+                                            className="bg-primary h-full rounded-full transition-all duration-300"
+                                            style={{ width: `${pipelineExecutionProgress}%` }}
+                                        />
+                                    </div>
+                                </div>
+                                <span className="text-xs text-text-secondary font-mono">{Math.round(pipelineExecutionProgress)}%</span>
+                            </div>
+                        </div>
                     )}
-                </ReactFlow>
 
-                {/* Node Palette */}
-                <NodePalette isOpen={isPaletteOpen} onClose={() => setIsPaletteOpen(false)} />
-
-                {/* Context Menu */}
-                <ContextMenu
-                    position={contextMenuPosition}
-                    items={contextMenuItems}
-                    onClose={closeMainContextMenu}
-                />
-
-                {/* Add Node Submenu */}
-                <AddNodeSubmenu
-                    position={addNodeMenuPosition}
-                    categories={categories}
-                    onAddUtilityNode={(type) => {
-                        if (addNodeMenuPosition) {
-                            handleAddUtilityNode(type, addNodeMenuPosition.x, addNodeMenuPosition.y)
-                        }
-                    }}
-                    onAddOperatorNode={(plugin) => {
-                        if (addNodeMenuPosition) {
-                            handleAddOperatorNode(plugin, addNodeMenuPosition.x, addNodeMenuPosition.y)
-                        }
-                    }}
-                    onClose={closeContextMenus}
-                />
-            </div>
-
-            {/* Rename Dialog */}
-            {renameDialogOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-                    <div className="bg-surface-dark border border-border-dark rounded-lg p-6 w-80 shadow-2xl">
-                        <h3 className="text-lg font-semibold text-white mb-4">Rename Node</h3>
-                        <input
-                            type="text"
-                            value={renameValue}
-                            onChange={(e) => setRenameValue(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter') handleRenameConfirm()
-                                if (e.key === 'Escape') setRenameDialogOpen(false)
+                    {/* Actual Canvas */}
+                    <div className="flex-1 relative" ref={reactFlowWrapper}>
+                        <ReactFlow
+                            nodes={pipelineNodes}
+                            edges={pipelineEdges}
+                            onNodesChange={onNodesChange}
+                            onEdgesChange={onEdgesChange}
+                            onConnect={handleConnect}
+                            onPaneContextMenu={handlePaneContextMenu}
+                            onNodeContextMenu={handleNodeContextMenu}
+                            nodeTypes={nodeTypes}
+                            fitView
+                            snapToGrid
+                            snapGrid={[20, 20]}
+                            defaultEdgeOptions={{
+                                type: 'smoothstep',
+                                animated: true,
+                                style: { stroke: '#6366f1', strokeWidth: 2 },
                             }}
-                            autoFocus
-                            className="w-full bg-background-dark border border-border-dark rounded px-3 py-2 text-white outline-none focus:border-primary"
-                        />
-                        <div className="flex justify-end gap-2 mt-4">
-                            <button
-                                onClick={() => setRenameDialogOpen(false)}
-                                className="px-4 py-2 text-sm text-text-secondary hover:text-white transition-colors"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleRenameConfirm}
-                                className="px-4 py-2 text-sm font-semibold bg-primary text-white rounded hover:bg-blue-600 transition-colors"
-                            >
-                                Rename
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Save Workflow Dialog */}
-            {saveWorkflowDialogOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-                    <div className="bg-surface-dark border border-border-dark rounded-lg p-6 w-96 shadow-2xl">
-                        <h3 className="text-lg font-semibold text-white mb-2">Save Workflow</h3>
-                        <p className="text-sm text-text-secondary mb-4">Enter a name for your workflow. It will be downloaded as a JSON file.</p>
-                        <input
-                            type="text"
-                            value={saveWorkflowName}
-                            onChange={(e) => setSaveWorkflowName(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter') confirmSaveWorkflow()
-                                if (e.key === 'Escape') setSaveWorkflowDialogOpen(false)
-                            }}
-                            autoFocus
-                            placeholder="Workflow name..."
-                            className="w-full bg-background-dark border border-border-dark rounded px-3 py-2 text-white outline-none focus:border-primary"
-                        />
-                        <div className="flex justify-end gap-2 mt-4">
-                            <button
-                                onClick={() => setSaveWorkflowDialogOpen(false)}
-                                className="px-4 py-2 text-sm text-text-secondary hover:text-white transition-colors"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={confirmSaveWorkflow}
-                                className="px-4 py-2 text-sm font-semibold bg-primary text-white rounded hover:bg-blue-600 transition-colors"
-                            >
-                                <span className="material-symbols-outlined text-[16px] mr-1 align-middle">save</span>
-                                Save
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Node Color Picker Dialog */}
-            {colorPickerOpen && colorPickerNodeId && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-                    <div className="bg-surface-dark border border-border-dark rounded-lg p-6 w-80 shadow-2xl">
-                        <h3 className="text-lg font-semibold text-white mb-4">Set Node Color</h3>
-                        <div className="grid grid-cols-5 gap-2 mb-4">
-                            {NODE_COLORS.map((color) => (
-                                <button
-                                    key={color.name}
-                                    onClick={() => {
-                                        updateNodeData(colorPickerNodeId, { headerColor: color.value || undefined })
-                                        setColorPickerOpen(false)
-                                        setColorPickerNodeId(null)
-                                    }}
-                                    className={`w-10 h-10 rounded-lg border-2 border-border-dark hover:border-white transition-colors ${color.value || 'bg-primary'}`}
-                                    title={color.name}
-                                />
-                            ))}
-                        </div>
-                        <div className="flex justify-end">
-                            <button
-                                onClick={() => {
-                                    setColorPickerOpen(false)
-                                    setColorPickerNodeId(null)
+                            proOptions={{ hideAttribution: true }}
+                            className="bg-background-dark"
+                        >
+                            <Background
+                                variant={BackgroundVariant.Dots}
+                                gap={20}
+                                size={1}
+                                color="#3f3f46"
+                            />
+                            <Controls
+                                className="!bg-surface-dark !border-border-dark !shadow-lg"
+                                showZoom
+                                showFitView
+                                showInteractive
+                            />
+                            <MiniMap
+                                className="!bg-surface-dark !border-border-dark"
+                                nodeColor={(node) => {
+                                    switch (node.type) {
+                                        case 'load_image':
+                                            return '#10b981'
+                                        case 'save_image':
+                                            return '#3b82f6'
+                                        case 'preview':
+                                            return '#8b5cf6'
+                                        case 'markdown_note':
+                                            return '#f59e0b'
+                                        case 'operator':
+                                            return '#6366f1'
+                                        default:
+                                            return '#6b7280'
+                                    }
                                 }}
-                                className="px-4 py-2 text-sm text-text-secondary hover:text-white transition-colors"
-                            >
-                                Cancel
-                            </button>
-                        </div>
+                                maskColor="rgba(0, 0, 0, 0.7)"
+                            />
+
+                            {/* Empty State */}
+                            {pipelineNodes.length === 0 && (
+                                <Panel position="top-center" className="mt-20">
+                                    <div className="text-center bg-surface-dark/90 backdrop-blur-sm border border-border-dark rounded-lg px-8 py-6">
+                                        <span className="material-symbols-outlined text-5xl text-text-secondary/30">
+                                            account_tree
+                                        </span>
+                                        <p className="text-white mt-3 font-medium">Start building your workflow</p>
+                                        <p className="text-text-secondary text-sm mt-1">
+                                            Right-click anywhere to add nodes, or use the "Add Node" button
+                                        </p>
+                                        <button
+                                            onClick={() => setIsPaletteOpen(true)}
+                                            className="mt-4 flex items-center gap-2 mx-auto bg-primary hover:bg-blue-600 text-white px-4 py-2 rounded text-sm font-semibold transition-colors"
+                                        >
+                                            <span className="material-symbols-outlined text-[18px]">add_circle</span>
+                                            <span>Add Node</span>
+                                        </button>
+                                    </div>
+                                </Panel>
+                            )}
+                        </ReactFlow>
+
+                        {/* Node Palette */}
+                        <NodePalette isOpen={isPaletteOpen} onClose={() => setIsPaletteOpen(false)} />
+
+                        {/* Context Menu */}
+                        <ContextMenu
+                            position={contextMenuPosition}
+                            items={contextMenuItems}
+                            onClose={closeMainContextMenu}
+                        />
+
+                        {/* Add Node Submenu */}
+                        <AddNodeSubmenu
+                            position={addNodeMenuPosition}
+                            categories={categories}
+                            onAddUtilityNode={(type) => {
+                                if (addNodeMenuPosition) {
+                                    handleAddUtilityNode(type, addNodeMenuPosition.x, addNodeMenuPosition.y)
+                                }
+                            }}
+                            onAddOperatorNode={(plugin) => {
+                                if (addNodeMenuPosition) {
+                                    handleAddOperatorNode(plugin, addNodeMenuPosition.x, addNodeMenuPosition.y)
+                                }
+                            }}
+                            onClose={closeContextMenus}
+                        />
                     </div>
+
+                    {/* Rename Dialog */}
+                    {renameDialogOpen && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+                            <div className="bg-surface-dark border border-border-dark rounded-lg p-6 w-80 shadow-2xl">
+                                <h3 className="text-lg font-semibold text-white mb-4">Rename Node</h3>
+                                <input
+                                    type="text"
+                                    value={renameValue}
+                                    onChange={(e) => setRenameValue(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') handleRenameConfirm()
+                                        if (e.key === 'Escape') setRenameDialogOpen(false)
+                                    }}
+                                    autoFocus
+                                    className="w-full bg-background-dark border border-border-dark rounded px-3 py-2 text-white outline-none focus:border-primary"
+                                />
+                                <div className="flex justify-end gap-2 mt-4">
+                                    <button
+                                        onClick={() => setRenameDialogOpen(false)}
+                                        className="px-4 py-2 text-sm text-text-secondary hover:text-white transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={handleRenameConfirm}
+                                        className="px-4 py-2 text-sm font-semibold bg-primary text-white rounded hover:bg-blue-600 transition-colors"
+                                    >
+                                        Rename
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Save Workflow Dialog */}
+                    {saveWorkflowDialogOpen && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+                            <div className="bg-surface-dark border border-border-dark rounded-lg p-6 w-96 shadow-2xl">
+                                <h3 className="text-lg font-semibold text-white mb-2">Save Workflow</h3>
+                                <p className="text-sm text-text-secondary mb-4">Enter a name for your workflow. It will be downloaded as a JSON file.</p>
+                                <input
+                                    type="text"
+                                    value={saveWorkflowName}
+                                    onChange={(e) => setSaveWorkflowName(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') confirmSaveWorkflow()
+                                        if (e.key === 'Escape') setSaveWorkflowDialogOpen(false)
+                                    }}
+                                    autoFocus
+                                    placeholder="Workflow name..."
+                                    className="w-full bg-background-dark border border-border-dark rounded px-3 py-2 text-white outline-none focus:border-primary"
+                                />
+                                <div className="flex justify-end gap-2 mt-4">
+                                    <button
+                                        onClick={() => setSaveWorkflowDialogOpen(false)}
+                                        className="px-4 py-2 text-sm text-text-secondary hover:text-white transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={confirmSaveWorkflow}
+                                        className="px-4 py-2 text-sm font-semibold bg-primary text-white rounded hover:bg-blue-600 transition-colors"
+                                    >
+                                        <span className="material-symbols-outlined text-[16px] mr-1 align-middle">save</span>
+                                        Save
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Node Color Picker Dialog */}
+                    {colorPickerOpen && colorPickerNodeId && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+                            <div className="bg-surface-dark border border-border-dark rounded-lg p-6 w-80 shadow-2xl">
+                                <h3 className="text-lg font-semibold text-white mb-4">Set Node Color</h3>
+                                <div className="grid grid-cols-5 gap-2 mb-4">
+                                    {NODE_COLORS.map((color) => (
+                                        <button
+                                            key={color.name}
+                                            onClick={() => {
+                                                updateNodeData(colorPickerNodeId, { headerColor: color.value || undefined })
+                                                setColorPickerOpen(false)
+                                                setColorPickerNodeId(null)
+                                            }}
+                                            className={`w-10 h-10 rounded-lg border-2 border-border-dark hover:border-white transition-colors ${color.value || 'bg-primary'}`}
+                                            title={color.name}
+                                        />
+                                    ))}
+                                </div>
+                                <div className="flex justify-end">
+                                    <button
+                                        onClick={() => {
+                                            setColorPickerOpen(false)
+                                            setColorPickerNodeId(null)
+                                        }}
+                                        className="px-4 py-2 text-sm text-text-secondary hover:text-white transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
-            )}
+            </div>
         </div>
     )
 }

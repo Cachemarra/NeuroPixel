@@ -456,7 +456,7 @@ export function AnalysisWorkspace() {
                 {/* Viewport Controls */}
                 <div className="h-12 border-b border-border-dark bg-surface-dark px-4 flex items-center justify-between shrink-0">
                     <div className="flex items-center gap-3">
-                        <span className="text-xs text-text-secondary font-mono">100% Zoom</span>
+                        <span className="text-xs text-text-secondary font-mono">{Math.round(viewportState.zoom * 100)}% Zoom</span>
                         <div className="h-4 w-px bg-border-dark"></div>
                         <span className="text-xs text-text-secondary font-mono">
                             {activeImage ? `${activeImage.metadata.width}x${activeImage.metadata.height}px` : 'No image'}

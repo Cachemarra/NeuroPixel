@@ -178,13 +178,32 @@ async def run_batch_job(job: BatchJob):
                     img, _ = read_image_with_metadata(file_path)
             
             # Execute pipeline
-            result_image, exec_result = job.pipeline.execute(img)
+            # Pass original_filename context to plugins (e.g. save_image)
+            pipeline_kwargs = {"original_filename": filename}
+            result_image, exec_result = job.pipeline.execute(img, **pipeline_kwargs)
             
             if exec_result.errors:
                 job.errors.extend(exec_result.errors)
             
             # Save result
             output_path = job.output_folder / f"processed_{filename}"
+
+            # Ensure unique filename
+            counter = 1
+            while output_path.exists():
+                name = Path(filename).stem
+                suffix = Path(filename).suffix
+                # If filename already starts with processed_, keep it that way?
+                # The prompt implies multiple runs produce duplicates.
+                # If subsequent runs happen, we get processed_processed_foo.png?
+                # Let's cleanly handle the stem.
+                
+                # Base is "processed_{filename}"
+                # If that exists, we want "processed_{stem}_{counter}{suffix}"
+                original_stem = Path(filename).stem
+                new_name = f"processed_{original_stem}_{counter}{suffix}"
+                output_path = job.output_folder / new_name
+                counter += 1
             
             # Convert to saveable format
             # Handle bit depth normalization

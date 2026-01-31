@@ -221,7 +221,7 @@ export function BatchProgressModal() {
                                     {inputMode === 'folder' && (
                                         <div className="space-y-1">
                                             <label className="text-xs text-text-secondary">Input Folder Path</label>
-                                            <div className="flex gap-2">
+                                            <div className="flex gap-2 relative">
                                                 <input
                                                     type="text"
                                                     value={inputFolder}
@@ -229,13 +229,31 @@ export function BatchProgressModal() {
                                                     className="flex-1 bg-background-dark border border-border-dark rounded px-3 py-2 text-sm text-white font-mono focus:border-primary focus:outline-none"
                                                     placeholder="/path/to/images"
                                                 />
-                                                <button
-                                                    onClick={openFolderPicker}
-                                                    className="px-3 py-2 bg-panel-dark border border-border-dark rounded text-text-secondary hover:text-white transition-colors"
+                                                <input
+                                                    type="file"
+                                                    // @ts-ignore
+                                                    webkitdirectory=""
+                                                    onChange={(e) => {
+                                                        if (e.target.files && e.target.files.length > 0) {
+                                                            const file = e.target.files[0] as any;
+                                                            if (file.path) {
+                                                                const dirPath = file.path.substring(0, file.path.lastIndexOf(window.navigator.userAgent.includes('Windows') ? '\\' : '/'));
+                                                                setInputFolder(dirPath);
+                                                            } else {
+                                                                alert("Browser security prevents detecting absolute paths. Please copy/paste the folder path.");
+                                                            }
+                                                        }
+                                                    }}
+                                                    className="hidden"
+                                                    id="batch-progress-input-folder"
+                                                />
+                                                <label
+                                                    htmlFor="batch-progress-input-folder"
+                                                    className="px-3 py-2 bg-panel-dark border border-border-dark rounded text-text-secondary hover:text-white transition-colors cursor-pointer flex items-center"
                                                     title="Browse for folder"
                                                 >
                                                     <span className="material-symbols-outlined text-[20px]">folder_open</span>
-                                                </button>
+                                                </label>
                                             </div>
                                         </div>
                                     )}
@@ -252,8 +270,35 @@ export function BatchProgressModal() {
                                         type="text"
                                         value={outputFolder}
                                         onChange={(e) => setOutputFolder(e.target.value)}
-                                        className="w-full bg-background-dark border border-border-dark rounded px-3 py-2 text-sm text-white font-mono"
+                                        className="w-full bg-background-dark border border-border-dark rounded px-3 py-2 text-sm text-white font-mono mb-2"
                                     />
+                                    <div className="relative">
+                                        <input
+                                            type="file"
+                                            // @ts-ignore
+                                            webkitdirectory=""
+                                            onChange={(e) => {
+                                                if (e.target.files && e.target.files.length > 0) {
+                                                    const file = e.target.files[0] as any;
+                                                    if (file.path) {
+                                                        const dirPath = file.path.substring(0, file.path.lastIndexOf(window.navigator.userAgent.includes('Windows') ? '\\' : '/'));
+                                                        setOutputFolder(dirPath);
+                                                    } else {
+                                                        alert("Browser security prevents detecting absolute paths. Please copy/paste the folder path.");
+                                                    }
+                                                }
+                                            }}
+                                            className="hidden"
+                                            id="batch-progress-output-folder"
+                                        />
+                                        <label
+                                            htmlFor="batch-progress-output-folder"
+                                            className="w-full flex items-center justify-center gap-2 py-1.5 px-3 bg-panel-dark hover:bg-surface-dark border border-border-dark text-text-secondary hover:text-white text-xs rounded cursor-pointer transition-colors"
+                                        >
+                                            <span className="material-symbols-outlined text-[16px]">folder_open</span>
+                                            Select Output Folder
+                                        </label>
+                                    </div>
                                 </div>
                             </div>
 

@@ -61,6 +61,14 @@ class SaveImagePlugin(ImagePlugin):
         filename = params.get("filename", "result")
         file_format = params.get("format", "png")
         
+        # Batch Support: If we are in a batch context, we might receive the original filename
+        # If the user hasn't explicitly set a custom filename (it's still default "result"),
+        # we should try to preserve the original name.
+        original_filename = kwargs.get("original_filename")
+        if filename == "result" and original_filename:
+            # Strip extension from original to avoid double extensions like image.png.png
+            filename = Path(original_filename).stem
+        
         if not filename.endswith(f".{file_format}"):
             filename = f"{filename}.{file_format}"
             
@@ -76,15 +84,7 @@ class SaveImagePlugin(ImagePlugin):
         
         try:
             # Allow user to specify a path, but it must be within the allowed areas
-            # For this simple plugin, we enforce everything goes into strict local folders or the temp dir
-            # But honoring the 'output_path' param safely:
-            
             target_dir = Path(output_path_str).resolve()
-            
-            # Security Check: Prevent breaking out of the project root or specific allowed paths
-            # For now, we'll verify it doesn't traverse upwards unexpectedly if relative
-            # A safer approach for a desktop app is to allow it, but for a web app we must restrict.
-            # Assuming Web/Hybrid context:
             
             # Simple sanitization: Create a confined output directory if not absolute
             if not target_dir.is_absolute():
@@ -100,6 +100,27 @@ class SaveImagePlugin(ImagePlugin):
             output_dir.mkdir(parents=True, exist_ok=True)
             
         full_path = output_dir / filename
+        
+        # Overwrite Protection
+        # App automatically appends counter if file exists
+        counter = 1
+        original_stem = Path(filename).stem
+        # Because we already added extension in line 72, strip it again cleanly if we need to loop
+        # Actually line 72 ensured extension.
+        # Let's trust full_path.exists()
+        
+        final_path = full_path
+        while final_path.exists():
+            stem = final_path.stem
+            # If stem already looks like name_1, we want name_2?
+            # Or just strictly append based on original intent?
+            # User wants "save multiple images... without overwriting".
+            # Simple counter approach:
+            new_name = f"{original_stem}_{counter}.{file_format}"
+            final_path = output_dir / new_name
+            counter += 1
+            
+        full_path = final_path
         
         # Standard normalization before saving
         save_image = image.copy()

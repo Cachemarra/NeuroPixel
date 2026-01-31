@@ -46,6 +46,14 @@ export interface SaveImageNodeData extends BaseNodeData {
     outputPath?: string
 }
 
+// Save Batch node
+export interface SaveBatchNodeData extends BaseNodeData {
+    nodeType: 'save_batch'
+    filename_prefix: string
+    format: 'png' | 'jpg' | 'webp'
+    output_folder: string
+}
+
 // Markdown Note node
 export interface MarkdownNoteNodeData extends BaseNodeData {
     nodeType: 'markdown_note'
@@ -72,6 +80,7 @@ export type NodeData =
     | OperatorNodeData
     | LoadImageNodeData
     | SaveImageNodeData
+    | SaveBatchNodeData
     | MarkdownNoteNodeData
     | PreviewNodeData
     | LoadBatchNodeData
@@ -87,7 +96,7 @@ export type PipelineEdge = Edge
 // Node Type Registry
 // =============================================================================
 
-export type NodeTypeKey = 'operator' | 'load_image' | 'load_batch' | 'save_image' | 'markdown_note' | 'preview'
+export type NodeTypeKey = 'operator' | 'load_image' | 'load_batch' | 'save_image' | 'save_batch' | 'markdown_note' | 'preview'
 
 export interface NodeTypeDefinition {
     type: NodeTypeKey
@@ -118,6 +127,13 @@ export const NODE_TYPE_DEFINITIONS: Record<NodeTypeKey, NodeTypeDefinition> = {
         icon: 'save',
         category: 'utility',
         description: 'Save/export an image',
+    },
+    save_batch: {
+        type: 'save_batch',
+        label: 'Save Batch Images',
+        icon: 'snippet_folder',
+        category: 'utility',
+        description: 'Save multiple images without overwriting',
     },
     preview: {
         type: 'preview',

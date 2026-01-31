@@ -8,16 +8,16 @@ services:
     image: lumagraph-backend:dev
     container_name: lumagraph-backend
     ports:
-      - "8000:8000"
+      - "8005:8005"
     volumes:
       - ./apps/backend:/app
       - backend-cache:/root/.cache
     environment:
       - PYTHONDONTWRITEBYTECODE=1
       - PYTHONUNBUFFERED=1
-    command: poetry run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: poetry run uvicorn app.main:app --host 0.0.0.0 --port 8005 --reload
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
+      test: [ "CMD", "curl", "-f", "http://localhost:8005/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -34,7 +34,7 @@ services:
       - ./apps/web-client:/app
       - /app/node_modules
     environment:
-      - VITE_API_URL=http://localhost:8000
+      - VITE_API_URL=http://localhost:8005
     command: npm run dev -- --host
     depends_on:
       - backend
