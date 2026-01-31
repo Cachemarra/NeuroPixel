@@ -4,49 +4,58 @@ Converts color images to grayscale using various methods.
 """
 import cv2
 import numpy as np
-from app.plugins.base import LumaGraphPlugin, plugin_param
+from app.core.plugin_spec import (
+    ImagePlugin,
+    PluginSpec,
+    SelectParam,
+    SelectOption,
+)
 
 
-class RGBToGrayscale(LumaGraphPlugin):
-    """
-    Converts RGB images to grayscale using various methods.
-    """
-    
-    name = "rgb_to_grayscale"
-    display_name = "RGB to Grayscale"
-    category = "Preprocessing"
-    description = "Converts color images to grayscale using various conversion methods."
-    
-    params = [
-        plugin_param(
+SPEC = PluginSpec(
+    name="rgb_to_grayscale",
+    display_name="RGB to Grayscale",
+    description="Converts color images to grayscale using various conversion methods.",
+    category="Preprocessing",
+    icon="filter_vintage",
+    params=[
+        SelectParam(
             name="method",
-            type="select",
             label="Method",
             description="Grayscale conversion algorithm",
             default="luminance",
             options=[
-                {"value": "luminance", "label": "Luminance (Rec. 709)"},
-                {"value": "average", "label": "Average (R+G+B)/3"},
-                {"value": "lightness", "label": "Lightness (max+min)/2"},
-                {"value": "red", "label": "Red Channel Only"},
-                {"value": "green", "label": "Green Channel Only"},
-                {"value": "blue", "label": "Blue Channel Only"},
+                SelectOption(value="luminance", label="Luminance (Rec. 709)"),
+                SelectOption(value="average", label="Average (R+G+B)/3"),
+                SelectOption(value="lightness", label="Lightness (max+min)/2"),
+                SelectOption(value="red", label="Red Channel Only"),
+                SelectOption(value="green", label="Green Channel Only"),
+                SelectOption(value="blue", label="Blue Channel Only"),
             ],
         ),
-        plugin_param(
+        SelectParam(
             name="output_channels",
-            type="select",
             label="Output",
             description="Output format",
             default="single",
             options=[
-                {"value": "single", "label": "Single Channel (Grayscale)"},
-                {"value": "rgb", "label": "3-Channel (Gray RGB)"},
+                SelectOption(value="single", label="Single Channel (Grayscale)"),
+                SelectOption(value="rgb", label="3-Channel (Gray RGB)"),
             ],
         ),
-    ]
+    ],
+)
+
+
+class RGBToGrayscalePlugin(ImagePlugin):
+    """
+    Converts RGB images to grayscale using various methods.
+    """
     
-    def process(self, image: np.ndarray, **params) -> np.ndarray:
+    SPEC = SPEC
+    
+    def run(self, image: np.ndarray, **kwargs) -> np.ndarray:
+        params = self.validate_params(**kwargs)
         method = params.get("method", "luminance")
         output_channels = params.get("output_channels", "single")
         
@@ -86,3 +95,6 @@ class RGBToGrayscale(LumaGraphPlugin):
             return cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
         else:
             return gray
+
+
+plugin = RGBToGrayscalePlugin()

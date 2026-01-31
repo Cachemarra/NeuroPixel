@@ -9,7 +9,7 @@ interface HealthResponse {
 }
 
 async function fetchHealth(): Promise<HealthResponse> {
-    const response = await fetch('http://localhost:8001/health')
+    const response = await fetch('http://localhost:8005/health')
     if (!response.ok) {
         throw new Error('Backend not available')
     }

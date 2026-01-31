@@ -1,6 +1,6 @@
 import { useAppStore, ImageData } from '@/store/appStore'
 
-const API_BASE = 'http://localhost:8001'
+const API_BASE = 'http://localhost:8005'
 
 interface UploadResponse {
     id: string

@@ -64,7 +64,7 @@ export function ComparisonEngine() {
         const fetchMetrics = async () => {
             setLoadingMetrics(true)
             try {
-                const res = await fetch(`http://localhost:8001/images/compare/${compareSourceA}/${compareSourceB}`)
+                const res = await fetch(`http://localhost:8005/images/compare/${compareSourceA}/${compareSourceB}`)
                 if (res.ok) {
                     const data = await res.json()
                     setMetrics(data)

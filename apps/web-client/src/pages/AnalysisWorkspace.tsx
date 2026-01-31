@@ -10,7 +10,7 @@ import { usePluginsByCategory } from '@/hooks/usePlugins'
 import { PluginController } from '@/components/PluginController'
 import type { PluginSpec } from '@/types/plugin'
 
-const API_BASE = 'http://localhost:8001'
+const API_BASE = 'http://localhost:8005'
 
 export function AnalysisWorkspace() {
     const fileInputRef = useRef<HTMLInputElement>(null)
@@ -615,7 +615,7 @@ export function AnalysisWorkspace() {
                                         })
                                     }
                                     try {
-                                        const res = await fetch(`http://localhost:8001/plugins/run`, {
+                                        const res = await fetch(`http://localhost:8005/plugins/run`, {
                                             method: 'POST',
                                             headers: { 'Content-Type': 'application/json' },
                                             body: JSON.stringify({
@@ -655,7 +655,7 @@ export function AnalysisWorkspace() {
                                         })
                                     }
                                     try {
-                                        const res = await fetch(`http://localhost:8001/plugins/run`, {
+                                        const res = await fetch(`http://localhost:8005/plugins/run`, {
                                             method: 'POST',
                                             headers: { 'Content-Type': 'application/json' },
                                             body: JSON.stringify({
@@ -722,7 +722,7 @@ export function AnalysisWorkspace() {
                                                 })
                                             }
                                             try {
-                                                const res = await fetch(`http://localhost:8001/plugins/run`, {
+                                                const res = await fetch(`http://localhost:8005/plugins/run`, {
                                                     method: 'POST',
                                                     headers: { 'Content-Type': 'application/json' },
                                                     body: JSON.stringify({

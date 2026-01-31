@@ -30,7 +30,7 @@ export function FolderPickerModal({ isOpen, onClose, onSelect, initialPath }: Fo
         setLoading(true)
         setError(null)
         try {
-            const response = await fetch('http://localhost:8001/system/browse', {
+            const response = await fetch('http://localhost:8005/system/browse', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ path })

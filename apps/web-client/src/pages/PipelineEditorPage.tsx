@@ -299,7 +299,7 @@ function PipelineEditorContent() {
                         `Running: ${data.label}`
                     )
 
-                    const response = await fetch('http://localhost:8001/plugins/run', {
+                    const response = await fetch('http://localhost:8005/plugins/run', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -323,10 +323,10 @@ function PipelineEditorContent() {
 
                     // Update the preview URL for this node
                     if (currentImageId) {
-                        const imgResponse = await fetch(`http://localhost:8001/images/${currentImageId}/metadata`)
+                        const imgResponse = await fetch(`http://localhost:8005/images/${currentImageId}/metadata`)
                         if (imgResponse.ok) {
                             const imgData = await imgResponse.json()
-                            updateNodeData(node.id, { previewUrl: imgData.url || `http://localhost:8001/images/${currentImageId}/preview` })
+                            updateNodeData(node.id, { previewUrl: imgData.url || `http://localhost:8005/images/${currentImageId}/preview` })
                         }
                     }
                     stepCount++
@@ -338,7 +338,7 @@ function PipelineEditorContent() {
                         'Saving image...'
                     )
 
-                    await fetch('http://localhost:8001/plugins/run', {
+                    await fetch('http://localhost:8005/plugins/run', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({

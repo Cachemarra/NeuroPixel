@@ -13,8 +13,8 @@ import '@xyflow/react/dist/style.css'
 import { useAppStore } from '@/store/appStore'
 import { nodeTypes } from '@/components/nodes'
 
-const API_BASE = 'http://localhost:8001'
-const WS_URL = 'ws://localhost:8001/batch/ws/progress'
+const API_BASE = 'http://localhost:8005'
+const WS_URL = 'ws://localhost:8005/batch/ws/progress'
 
 interface BatchImage {
     id: string
