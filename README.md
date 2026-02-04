@@ -12,7 +12,8 @@ LumaGraph allows Computer Vision Engineers to visualize, process, and compare hi
 *   **Batch Processing:** Apply processing pipelines to large sets of images efficiently.
 *   **Plugin System:** Extensible Python-based architecture. Includes standard library plugins:
     *   Brightness/Contrast/Exposure/Saturation/Temperature
-    *   Canny Edge Detection, Laplacian, Gaussian Blur, Unsharp Mask
+    *   HSL Adjustment, RGB to Grayscale, Shadows/Highlights
+    *   Canny Edge Detection, Laplacian, Gaussian Blur, Unsharp Mask, Sharpen, Denoise
     *   Morphology operations, Thresholding (Otsu)
     *   Geometry (Rotate, Flip, Crop, Resize)
 
@@ -34,15 +35,20 @@ LumaGraph allows Computer Vision Engineers to visualize, process, and compare hi
 *   **TailwindCSS** + **shadcn/ui**
 *   **Zustand** (State Management)
 *   **@xyflow/react** (Node Editor)
+*   **@tanstack/react-query** (Data Fetching)
 
 **Backend (Core Logic):**
 *   **Python 3.11**
 *   **FastAPI** (Async API)
 *   **OpenCV** + **NumPy** + **Scikit-Image**
+*   **Scikit-Learn**
 *   **Poetry** (Dependency Management)
 
 **Desktop Runtime:**
 *   **Tauri v2** (Rust) - Provides native OS integration and sidecar management.
+
+## ⚠️ Known Issues
+*   **Build Configuration:** The `apps/desktop/src-tauri/tauri.conf.json` file contains `npm` commands for build scripts (`npm run dev`, `npm run build`), but the project requires `pnpm`. Users building the desktop app should verify their environment or update these commands locally if they encounter issues.
 
 ## Getting Started
 
