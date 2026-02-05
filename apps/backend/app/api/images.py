@@ -373,6 +373,53 @@ async def delete_all_images():
     return {"status": "all deleted"}
 
 
+@router.get("/{image_id}/masked")
+async def get_masked_image(image_id: str, r: bool = True, g: bool = True, b: bool = True):
+    """
+    Get the image with specific channels masked (zeroed out).
+    Useful for visualizing individual color channels.
+    
+    Args:
+        r: Show red channel (True) or zero it (False)
+        g: Show green channel (True) or zero it (False)
+        b: Show blue channel (True) or zero it (False)
+    """
+    if image_id not in image_cache:
+        raise HTTPException(status_code=404, detail="Image not found")
+    
+    cache_entry = image_cache[image_id]
+    img = cache_entry.get("image")
+    
+    # Reload from disk if needed
+    if img is None:
+        file_path = cache_entry["path"]
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail="Image file not found")
+        img, _ = read_image_with_metadata(file_path)
+    
+    # Create a copy to avoid modifying cached image
+    masked_img = img.copy()
+    
+    # Handle grayscale (no channels to mask)
+    if len(masked_img.shape) == 2:
+        png_bytes = convert_to_display_png(masked_img)
+        return Response(content=png_bytes, media_type="image/png")
+    
+    # For RGB/RGBA images, mask channels as requested
+    # Image is stored as RGB internally
+    if not r:
+        masked_img[:, :, 0] = 0  # Zero out Red channel
+    if not g:
+        masked_img[:, :, 1] = 0  # Zero out Green channel
+    if not b:
+        masked_img[:, :, 2] = 0  # Zero out Blue channel
+    
+    # Convert to displayable PNG
+    png_bytes = convert_to_display_png(masked_img)
+    
+    return Response(content=png_bytes, media_type="image/png")
+
+
 @router.get("/{image_id}/histogram")
 async def get_image_histogram(image_id: str, bins: int = 256):
     """

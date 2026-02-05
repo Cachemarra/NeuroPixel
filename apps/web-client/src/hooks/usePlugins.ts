@@ -31,23 +31,85 @@ export function usePlugins() {
 
 /**
  * Get plugins grouped by category for the accordion
+ * Applies custom category remapping and sorting for better organization
  */
 export function usePluginsByCategory() {
     const { data, isLoading, error } = usePlugins()
 
+    // Remap old categories to new organized categories
+    const categoryRemap: Record<string, string> = {
+        'Preprocessing': 'Adjustments',
+        'Edge Detection': 'Filters',
+        'Segmentation': 'Analysis',
+        'Morphology': 'Transform',
+    }
+
+    // Plugin-specific category overrides (more granular control)
+    const pluginCategoryMap: Record<string, string> = {
+        // Adjustments (color/exposure)
+        'brightness_contrast': 'Adjustments',
+        'exposure': 'Adjustments',
+        'saturation': 'Adjustments',
+        'temperature': 'Adjustments',
+        'hsl_adjust': 'Adjustments',
+        'shadows_highlights': 'Adjustments',
+
+        // Filters (blur, sharpen, edge)
+        'gaussian_blur': 'Filters',
+        'denoise': 'Filters',
+        'sharpen': 'Filters',
+        'unsharp_mask': 'Filters',
+        'laplacian': 'Filters',
+        'canny': 'Filters',
+
+        // Transform (geometry)
+        'resize': 'Transform',
+        'rotate_flip': 'Transform',
+        'crop': 'Transform',
+        'morphology': 'Transform',
+
+        // Analysis (segmentation, conversion)
+        'otsu_threshold': 'Analysis',
+        'rgb_to_grayscale': 'Analysis',
+    }
+
+    // Category sort order
+    const categoryOrder = ['Adjustments', 'Filters', 'Transform', 'Analysis']
+
     const categorized = data?.plugins.reduce<Record<string, PluginSpec[]>>(
         (acc, plugin) => {
-            if (!acc[plugin.category]) {
-                acc[plugin.category] = []
+            // Determine category: specific override > remap > original
+            const category = pluginCategoryMap[plugin.name]
+                || categoryRemap[plugin.category]
+                || plugin.category
+
+            if (!acc[category]) {
+                acc[category] = []
             }
-            acc[plugin.category].push(plugin)
+            acc[category].push(plugin)
             return acc
         },
         {}
     )
 
+    // Sort categories according to preferred order
+    const sortedCategories: Record<string, PluginSpec[]> = {}
+    if (categorized) {
+        categoryOrder.forEach(cat => {
+            if (categorized[cat]) {
+                sortedCategories[cat] = categorized[cat]
+            }
+        })
+        // Add any remaining categories not in our order
+        Object.keys(categorized).forEach(cat => {
+            if (!sortedCategories[cat]) {
+                sortedCategories[cat] = categorized[cat]
+            }
+        })
+    }
+
     return {
-        categories: categorized || {},
+        categories: sortedCategories,
         isLoading,
         error,
     }
@@ -55,10 +117,12 @@ export function usePluginsByCategory() {
 
 /**
  * Hook for running a plugin
+ * Implements copy-on-first-edit: First operation creates ImageName_copy,
+ * subsequent operations apply to the copy, preserving the original.
  */
 export function useRunPlugin() {
     const queryClient = useQueryClient()
-    const { addImage, images } = useAppStore()
+    const { addImage, images, setActiveImage } = useAppStore()
 
     return useMutation<PluginRunResponse, Error, PluginRunRequest>({
         mutationFn: async (request) => {
@@ -78,33 +142,66 @@ export function useRunPlugin() {
             return response.json()
         },
         onSuccess: (data, variables) => {
-            // Find the root image ID (original source)
             const inputImage = images.find((img) => img.id === variables.image_id)
-            const rootId = inputImage?.sourceId || variables.image_id
 
-            // Construct name: SourceName_modified.png
-            const baseName = inputImage?.name.replace(/\.[^/.]+$/, "") || variables.image_id
-            const newName = `${baseName}_modified.png`
+            if (!inputImage) return
 
-            // Add/Update the result image in the store
-            addImage({
-                id: data.result_id,
-                name: newName,
-                url: data.result_url,
-                thumbnailUrl: `${API_BASE}/images/${data.result_id}/thumbnail`,
-                isResult: true,
-                sourceId: rootId,
-                metadata: {
-                    width: 0,
-                    height: 0,
-                    channels: 3,
-                    bitDepth: '8-bit',
-                    fileSize: 0,
-                },
-            })
+            // Determine if this is an original or already a working copy
+            const isOriginal = !inputImage.sourceId && !inputImage.isResult
+
+            // Get the base name (without extension and _copy suffix)
+            const baseName = inputImage.name.replace(/\\.[^/.]+$/, "").replace(/_copy$/, "")
+
+            if (isOriginal) {
+                // FIRST OPERATION on original: Create a new "_copy" image
+                const copyName = `${baseName}_copy.png`
+
+                // Add as a new distinct image (not updating the original)
+                addImage({
+                    id: data.result_id,
+                    name: copyName,
+                    url: data.result_url,
+                    thumbnailUrl: `${API_BASE}/images/${data.result_id}/thumbnail`,
+                    isResult: true,
+                    sourceId: inputImage.id, // Link back to original
+                    metadata: {
+                        width: inputImage.metadata.width,
+                        height: inputImage.metadata.height,
+                        channels: inputImage.metadata.channels,
+                        bitDepth: inputImage.metadata.bitDepth,
+                        fileSize: 0,
+                    },
+                })
+
+                // Auto-select the new copy so subsequent operations apply to it
+                setActiveImage(data.result_id)
+            } else {
+                // SUBSEQUENT OPERATIONS on a copy: Update the copy in-place
+                // Find and update the existing copy (same sourceId lineage)
+                const rootId = inputImage.sourceId || inputImage.id
+
+                // Just update the existing result image
+                addImage({
+                    id: data.result_id,
+                    name: inputImage.name, // Keep the _copy name
+                    url: data.result_url,
+                    thumbnailUrl: `${API_BASE}/images/${data.result_id}/thumbnail`,
+                    isResult: true,
+                    sourceId: rootId,
+                    metadata: {
+                        width: inputImage.metadata.width,
+                        height: inputImage.metadata.height,
+                        channels: inputImage.metadata.channels,
+                        bitDepth: inputImage.metadata.bitDepth,
+                        fileSize: 0,
+                    },
+                })
+
+                // Keep the new result selected
+                setActiveImage(data.result_id)
+            }
 
             queryClient.invalidateQueries({ queryKey: ['images'] })
         },
     })
 }
-
