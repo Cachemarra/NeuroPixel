@@ -127,17 +127,16 @@ export function AnalysisWorkspace() {
             return
         }
 
-        // Check if all RGB channels are visible (no masking needed)
-        const allVisible = visibleChannels.has('red') && visibleChannels.has('green') && visibleChannels.has('blue')
+        // Check if any RGB channel is hidden (triggers masking)
+        const r = visibleChannels.has('red')
+        const g = visibleChannels.has('green')
+        const b = visibleChannels.has('blue')
 
-        if (allVisible || visibleChannels.has('gray')) {
-            // Use original image
+        // If all RGB channels visible, use original image (no masking)
+        if (r && g && b) {
             setMaskedImageUrl(null)
         } else {
-            // Build masked URL with channel params
-            const r = visibleChannels.has('red')
-            const g = visibleChannels.has('green')
-            const b = visibleChannels.has('blue')
+            // At least one channel is hidden - use masked endpoint
             const url = `${API_BASE}/images/${activeImageId}/masked?r=${r}&g=${g}&b=${b}&t=${Date.now()}`
             setMaskedImageUrl(url)
         }

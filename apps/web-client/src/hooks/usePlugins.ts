@@ -118,11 +118,11 @@ export function usePluginsByCategory() {
 /**
  * Hook for running a plugin
  * Implements copy-on-first-edit: First operation creates ImageName_copy,
- * subsequent operations apply to the copy, preserving the original.
+ * subsequent operations REPLACE the copy with updated version, preserving the original.
  */
 export function useRunPlugin() {
     const queryClient = useQueryClient()
-    const { addImage, images, setActiveImage } = useAppStore()
+    const { addImage, removeImage, images, setActiveImage } = useAppStore()
 
     return useMutation<PluginRunResponse, Error, PluginRunRequest>({
         mutationFn: async (request) => {
@@ -150,20 +150,20 @@ export function useRunPlugin() {
             const isOriginal = !inputImage.sourceId && !inputImage.isResult
 
             // Get the base name (without extension and _copy suffix)
-            const baseName = inputImage.name.replace(/\\.[^/.]+$/, "").replace(/_copy$/, "")
+            const baseName = inputImage.name.replace(/\.[^/.]+$/, "").replace(/_copy$/, "")
+            const originalId = inputImage.sourceId || inputImage.id
 
             if (isOriginal) {
                 // FIRST OPERATION on original: Create a new "_copy" image
                 const copyName = `${baseName}_copy.png`
 
-                // Add as a new distinct image (not updating the original)
                 addImage({
                     id: data.result_id,
                     name: copyName,
                     url: data.result_url,
                     thumbnailUrl: `${API_BASE}/images/${data.result_id}/thumbnail`,
                     isResult: true,
-                    sourceId: inputImage.id, // Link back to original
+                    sourceId: inputImage.id,
                     metadata: {
                         width: inputImage.metadata.width,
                         height: inputImage.metadata.height,
@@ -173,21 +173,21 @@ export function useRunPlugin() {
                     },
                 })
 
-                // Auto-select the new copy so subsequent operations apply to it
+                // Auto-select the new copy
                 setActiveImage(data.result_id)
             } else {
-                // SUBSEQUENT OPERATIONS on a copy: Update the copy in-place
-                // Find and update the existing copy (same sourceId lineage)
-                const rootId = inputImage.sourceId || inputImage.id
+                // SUBSEQUENT OPERATIONS on a copy: REPLACE the old copy
+                // Remove the old copy entry
+                removeImage(inputImage.id)
 
-                // Just update the existing result image
+                // Add the new result with the same _copy name
                 addImage({
                     id: data.result_id,
                     name: inputImage.name, // Keep the _copy name
                     url: data.result_url,
                     thumbnailUrl: `${API_BASE}/images/${data.result_id}/thumbnail`,
                     isResult: true,
-                    sourceId: rootId,
+                    sourceId: originalId,
                     metadata: {
                         width: inputImage.metadata.width,
                         height: inputImage.metadata.height,
@@ -197,11 +197,12 @@ export function useRunPlugin() {
                     },
                 })
 
-                // Keep the new result selected
+                // Select the new replacement
                 setActiveImage(data.result_id)
             }
 
-            queryClient.invalidateQueries({ queryKey: ['images'] })
+            // Note: Not invalidating image queries since we manage state in zustand directly
+            // queryClient.invalidateQueries({ queryKey: ['images'] })
         },
     })
 }
