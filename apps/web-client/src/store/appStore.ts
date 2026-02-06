@@ -4,7 +4,7 @@ import type { NodeChange, EdgeChange } from '@xyflow/react'
 import type { PipelineNode, PipelineEdge, NodeData } from '@/types/nodeGraph'
 
 export type ViewMode = 'single' | 'compare' | 'batch' | 'pipeline'
-export type CompareMode = 'side-by-side' | 'swipe' | 'diff'
+export type CompareMode = 'side-by-side' | 'swipe' | 'swapbox' | 'diff'
 
 export interface ImageMetadata {
     width: number
@@ -82,9 +82,11 @@ interface AppState {
     // Comparison state
     compareSourceA: string | null
     compareSourceB: string | null
+    compareSourceC: string | null
     compareMode: CompareMode
     setCompareSourceA: (id: string | null) => void
     setCompareSourceB: (id: string | null) => void
+    setCompareSourceC: (id: string | null) => void
     setCompareMode: (mode: CompareMode) => void
 
     // Synchronized viewport state (source of truth for both viewers)
@@ -270,9 +272,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     // Comparison state
     compareSourceA: null,
     compareSourceB: null,
+    compareSourceC: null,
     compareMode: 'side-by-side',
     setCompareSourceA: (id) => set({ compareSourceA: id }),
     setCompareSourceB: (id) => set({ compareSourceB: id }),
+    setCompareSourceC: (id) => set({ compareSourceC: id }),
     setCompareMode: (mode) => set({ compareMode: mode }),
 
     // Synchronized viewport state

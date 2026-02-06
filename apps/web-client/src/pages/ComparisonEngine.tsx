@@ -9,7 +9,7 @@ import { useImageUpload } from '@/hooks/useImageUpload'
 import { ComparisonEngine as ComparisonViewer } from '@/components/ComparisonEngine'
 
 export function ComparisonEngine() {
-    const { images, compareSourceA, compareSourceB, setCompareSourceA, setCompareSourceB } = useAppStore()
+    const { images, compareSourceA, compareSourceB, compareSourceC, setCompareSourceA, setCompareSourceB, setCompareSourceC } = useAppStore()
     const { uploadImage } = useImageUpload()
     const fileInputRef = useRef<HTMLInputElement>(null)
     const [targetSource, setTargetSource] = useState<'A' | 'B' | null>(null)
@@ -119,7 +119,8 @@ export function ComparisonEngine() {
                                         key={img.id}
                                         className={`group relative flex items-center gap-2 p-2 rounded cursor-pointer transition-colors ${compareSourceA === img.id ? 'bg-cyan-500/20 border border-cyan-500/50' :
                                             compareSourceB === img.id ? 'bg-orange-500/20 border border-orange-500/50' :
-                                                'hover:bg-panel-dark'
+                                                compareSourceC === img.id ? 'bg-violet-500/20 border border-violet-500/50' :
+                                                    'hover:bg-panel-dark'
                                             }`}
                                     >
                                         {/* Thumbnail */}
@@ -145,6 +146,13 @@ export function ComparisonEngine() {
                                                     }`}
                                             >
                                                 B
+                                            </button>
+                                            <button
+                                                onClick={() => setCompareSourceC(img.id)}
+                                                className={`px-1.5 py-0.5 text-[10px] font-bold rounded ${compareSourceC === img.id ? 'bg-violet-500 text-white' : 'bg-panel-dark text-violet-400 hover:bg-violet-500/20'
+                                                    }`}
+                                            >
+                                                C
                                             </button>
                                         </div>
                                     </div>
