@@ -9,7 +9,9 @@ LumaGraph allows Computer Vision Engineers to visualize, process, and compare hi
 *   **Analysis Workspace:** Single image analysis with real-time histograms, statistics (Mean, Std Dev, Entropy), and pixel inspection.
 *   **Comparison Engine:** Compare two images side-by-side or using overlay modes, with automatic calculation of SSIM, PSNR, and MSE metrics.
 *   **Pipeline Editor:** Visual node-based editor for creating complex image processing workflows.
-*   **Batch Processing:** Apply processing pipelines to large sets of images efficiently.
+*   **Batch Processing:** Apply processing pipelines to large sets of images efficiently. Includes folder scanning and real-time progress tracking.
+*   **System Integration:** Native folder pickers and compute device detection (CPU/GPU).
+*   **Keyboard Shortcuts:** Quick access to common actions via a shortcuts modal.
 *   **Plugin System:** Extensible Python-based architecture. Includes standard library plugins:
     *   Brightness/Contrast/Exposure/Saturation/Temperature
     *   Shadows/Highlights, Denoise, Sharpen, Unsharp Mask
