@@ -88,6 +88,7 @@ export interface PluginRunResponse {
     success: boolean
     result_id: string
     result_url: string
+    thumbnail_url?: string
     execution_time_ms: number
     plugin_name: string
     params_used: Record<string, unknown>

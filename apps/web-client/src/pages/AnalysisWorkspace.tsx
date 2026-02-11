@@ -81,6 +81,9 @@ export function AnalysisWorkspace() {
     } | null>(null)
     const [visibleChannels, setVisibleChannels] = useState<Set<string>>(new Set(['red', 'green', 'blue', 'gray']))
 
+    // Histogram refresh key — incremented after undo/redo/filter to re-fetch
+    const [histogramRefreshKey, setHistogramRefreshKey] = useState(0)
+
     // Rotation preview state for real-time preview
     const [rotationPreview, setRotationPreview] = useState(0)
 
@@ -152,7 +155,7 @@ export function AnalysisWorkspace() {
         }
 
         fetchData()
-    }, [activeImageId])
+    }, [activeImageId, histogramRefreshKey])
 
     // Get active image data
     const activeImage = images.find(img => img.id === activeImageId)
@@ -466,16 +469,26 @@ export function AnalysisWorkspace() {
                         <div className="flex items-center gap-1 ml-4 bg-background-dark rounded-sm border border-border-dark p-0.5">
                             <button
                                 onClick={() => {
-                                    const entry = useAppStore.getState().undo()
+                                    const state = useAppStore.getState()
+                                    const currentImage = state.images.find(img => img.id === state.activeImageId)
+                                    if (!currentImage) return
+                                    const currentSnapshot = {
+                                        imageId: currentImage.id,
+                                        url: currentImage.url,
+                                        thumbnailUrl: currentImage.thumbnailUrl,
+                                        name: currentImage.name,
+                                    }
+                                    const entry = state.undo(currentSnapshot)
                                     if (entry) {
                                         useAppStore.getState().updateImage(entry.imageId, {
                                             url: entry.url + (entry.url.includes('?') ? '&' : '?') + 't=' + Date.now(),
                                             thumbnailUrl: entry.thumbnailUrl + (entry.thumbnailUrl.includes('?') ? '&' : '?') + 't=' + Date.now(),
                                             name: entry.name,
                                         })
+                                        setHistogramRefreshKey(k => k + 1)
                                     }
                                 }}
-                                disabled={!useAppStore((state) => state.canUndo())}
+                                disabled={!useAppStore((state) => state.undoStack.length > 0)}
                                 className="p-1 hover:bg-panel-dark text-text-secondary hover:text-white rounded-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                                 title="Undo"
                             >
@@ -483,16 +496,26 @@ export function AnalysisWorkspace() {
                             </button>
                             <button
                                 onClick={() => {
-                                    const entry = useAppStore.getState().redo()
+                                    const state = useAppStore.getState()
+                                    const currentImage = state.images.find(img => img.id === state.activeImageId)
+                                    if (!currentImage) return
+                                    const currentSnapshot = {
+                                        imageId: currentImage.id,
+                                        url: currentImage.url,
+                                        thumbnailUrl: currentImage.thumbnailUrl,
+                                        name: currentImage.name,
+                                    }
+                                    const entry = state.redo(currentSnapshot)
                                     if (entry) {
                                         useAppStore.getState().updateImage(entry.imageId, {
                                             url: entry.url + (entry.url.includes('?') ? '&' : '?') + 't=' + Date.now(),
                                             thumbnailUrl: entry.thumbnailUrl + (entry.thumbnailUrl.includes('?') ? '&' : '?') + 't=' + Date.now(),
                                             name: entry.name,
                                         })
+                                        setHistogramRefreshKey(k => k + 1)
                                     }
                                 }}
-                                disabled={!useAppStore((state) => state.canRedo())}
+                                disabled={!useAppStore((state) => state.redoStack.length > 0)}
                                 className="p-1 hover:bg-panel-dark text-text-secondary hover:text-white rounded-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                                 title="Redo"
                             >

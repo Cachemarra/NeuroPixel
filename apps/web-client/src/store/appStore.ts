@@ -70,11 +70,11 @@ interface AppState {
     setActiveView: (view: ViewMode) => void
 
     // Edit history (undo/redo)
-    editHistory: HistoryEntry[]
-    historyIndex: number
+    undoStack: HistoryEntry[]
+    redoStack: HistoryEntry[]
     pushToHistory: (entry: HistoryEntry) => void
-    undo: () => HistoryEntry | null
-    redo: () => HistoryEntry | null
+    undo: (currentSnapshot: HistoryEntry) => HistoryEntry | null
+    redo: (currentSnapshot: HistoryEntry) => HistoryEntry | null
     canUndo: () => boolean
     canRedo: () => boolean
     clearHistory: () => void
@@ -221,51 +221,49 @@ export const useAppStore = create<AppState>((set, get) => ({
     setActiveView: (view) => set({ activeView: view }),
 
     // Edit history (undo/redo) - max 20 entries
-    editHistory: [],
-    historyIndex: -1,
+    undoStack: [],
+    redoStack: [],
     pushToHistory: (entry) =>
         set((state) => {
-            // Truncate any redo entries when pushing new edit
-            const newHistory = state.editHistory.slice(0, state.historyIndex + 1)
-            newHistory.push(entry)
+            const newStack = [...state.undoStack, entry]
             // Limit to 20 entries
-            if (newHistory.length > 20) {
-                newHistory.shift()
+            if (newStack.length > 20) {
+                newStack.shift()
             }
             return {
-                editHistory: newHistory,
-                historyIndex: newHistory.length - 1,
+                undoStack: newStack,
+                redoStack: [],  // Clear redo when a new edit is made
             }
         }),
-    undo: () => {
+    undo: (currentSnapshot) => {
         const state = get()
-        if (state.historyIndex > 0) {
-            const newIndex = state.historyIndex - 1
-            const entry = state.editHistory[newIndex]
-            set({ historyIndex: newIndex })
-            return entry
-        }
-        return null
+        if (state.undoStack.length === 0) return null
+        const entry = state.undoStack[state.undoStack.length - 1]
+        set({
+            undoStack: state.undoStack.slice(0, -1),
+            redoStack: [...state.redoStack, currentSnapshot],
+        })
+        return entry
     },
-    redo: () => {
+    redo: (currentSnapshot) => {
         const state = get()
-        if (state.historyIndex < state.editHistory.length - 1) {
-            const newIndex = state.historyIndex + 1
-            const entry = state.editHistory[newIndex]
-            set({ historyIndex: newIndex })
-            return entry
-        }
-        return null
+        if (state.redoStack.length === 0) return null
+        const entry = state.redoStack[state.redoStack.length - 1]
+        set({
+            redoStack: state.redoStack.slice(0, -1),
+            undoStack: [...state.undoStack, currentSnapshot],
+        })
+        return entry
     },
     canUndo: () => {
         const state = get()
-        return state.historyIndex > 0
+        return state.undoStack.length > 0
     },
     canRedo: () => {
         const state = get()
-        return state.historyIndex < state.editHistory.length - 1
+        return state.redoStack.length > 0
     },
-    clearHistory: () => set({ editHistory: [], historyIndex: -1 }),
+    clearHistory: () => set({ undoStack: [], redoStack: [] }),
 
     // Comparison state
     compareSourceA: null,

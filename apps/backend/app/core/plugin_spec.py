@@ -175,6 +175,7 @@ class PluginRunResponse(BaseModel):
     success: bool
     result_id: str = Field(..., description="ID of the processed image")
     result_url: str = Field(..., description="URL to fetch the result")
+    thumbnail_url: Optional[str] = Field(None, description="URL to fetch the result thumbnail")
     execution_time_ms: float = Field(..., description="Processing time in milliseconds")
     plugin_name: str
     params_used: dict[str, Any]

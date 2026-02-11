@@ -152,7 +152,8 @@ async def run_plugin(request: PluginRunRequest):
         return PluginRunResponse(
             success=True,
             result_id=result_id,
-            result_url=f"http://localhost:8001/images/{result_id}/preview",
+            result_url=f"http://localhost:8005/images/{result_id}/preview",
+            thumbnail_url=f"http://localhost:8005/images/{result_id}/thumbnail",
             execution_time_ms=execution_time,
             plugin_name=request.plugin_name,
             params_used=request.params,

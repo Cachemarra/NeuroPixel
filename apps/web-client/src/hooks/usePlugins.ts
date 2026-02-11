@@ -58,7 +58,7 @@ export function usePluginsByCategory() {
  */
 export function useRunPlugin() {
     const queryClient = useQueryClient()
-    const { addImage, images } = useAppStore()
+    const { updateImage } = useAppStore()
 
     return useMutation<PluginRunResponse, Error, PluginRunRequest>({
         mutationFn: async (request) => {
@@ -78,29 +78,12 @@ export function useRunPlugin() {
             return response.json()
         },
         onSuccess: (data, variables) => {
-            // Find the root image ID (original source)
-            const inputImage = images.find((img) => img.id === variables.image_id)
-            const rootId = inputImage?.sourceId || variables.image_id
-
-            // Construct name: SourceName_modified.png
-            const baseName = inputImage?.name.replace(/\.[^/.]+$/, "") || variables.image_id
-            const newName = `${baseName}_modified.png`
-
-            // Add/Update the result image in the store
-            addImage({
-                id: data.result_id,
-                name: newName,
-                url: data.result_url,
-                thumbnailUrl: `${API_BASE}/images/${data.result_id}/thumbnail`,
-                isResult: true,
-                sourceId: rootId,
-                metadata: {
-                    width: 0,
-                    height: 0,
-                    channels: 3,
-                    bitDepth: '8-bit',
-                    fileSize: 0,
-                },
+            // Photoshop-style: update the active image in-place
+            // The old state was already pushed to undo history by PluginController before the mutation
+            const t = Date.now()
+            updateImage(variables.image_id, {
+                url: `${API_BASE}/images/${data.result_id}/preview?t=${t}`,
+                thumbnailUrl: `${API_BASE}/images/${data.result_id}/thumbnail?t=${t}`,
             })
 
             queryClient.invalidateQueries({ queryKey: ['images'] })
