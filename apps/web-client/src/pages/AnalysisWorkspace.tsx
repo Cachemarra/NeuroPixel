@@ -68,6 +68,42 @@ export function AnalysisWorkspace() {
     const [leftSidebarOpen, setLeftSidebarOpen] = useState(true)
     const [rightSidebarOpen, setRightSidebarOpen] = useState(true)
 
+    // Explorer mode: 'uploads' (uploaded images) or 'filebrowser' (directory tree)
+    const [explorerMode, setExplorerMode] = useState<'uploads' | 'filebrowser'>('uploads')
+
+    // Detect if running in Electron (desktop mode enables file browser)
+    const isElectron = typeof window !== 'undefined' &&
+        (window.navigator.userAgent.includes('Electron') ||
+            // @ts-ignore - Check for Electron-specific APIs
+            typeof window.require !== 'undefined')
+
+    // File browser state
+    const [currentDirectory, setCurrentDirectory] = useState<string>('/home')
+    const [directoryContents, setDirectoryContents] = useState<Array<{ name: string, type: 'file' | 'directory', path: string }>>([])
+    const [isLoadingDirectory, setIsLoadingDirectory] = useState(false)
+
+    // Load directory contents when in file browser mode
+    useEffect(() => {
+        if (explorerMode !== 'filebrowser') return
+
+        const loadDirectory = async () => {
+            setIsLoadingDirectory(true)
+            try {
+                const response = await fetch(`${API_BASE}/system/browse?path=${encodeURIComponent(currentDirectory)}`)
+                if (response.ok) {
+                    const data = await response.json()
+                    setDirectoryContents(data.entries || [])
+                }
+            } catch (err) {
+                console.error('Failed to load directory:', err)
+            } finally {
+                setIsLoadingDirectory(false)
+            }
+        }
+
+        loadDirectory()
+    }, [explorerMode, currentDirectory])
+
     // Histogram and statistics state
     const [histogramData, setHistogramData] = useState<Record<string, number[]> | null>(null)
     const [statisticsData, setStatisticsData] = useState<{
@@ -80,6 +116,31 @@ export function AnalysisWorkspace() {
         kurtosis: number
     } | null>(null)
     const [visibleChannels, setVisibleChannels] = useState<Set<string>>(new Set(['red', 'green', 'blue', 'gray']))
+
+    // Masked image URL when channels are toggled off
+    const [maskedImageUrl, setMaskedImageUrl] = useState<string | null>(null)
+
+    // Compute masked image URL when channels change
+    useEffect(() => {
+        if (!activeImageId) {
+            setMaskedImageUrl(null)
+            return
+        }
+
+        // Check if any RGB channel is hidden (triggers masking)
+        const r = visibleChannels.has('red')
+        const g = visibleChannels.has('green')
+        const b = visibleChannels.has('blue')
+
+        // If all RGB channels visible, use original image (no masking)
+        if (r && g && b) {
+            setMaskedImageUrl(null)
+        } else {
+            // At least one channel is hidden - use masked endpoint
+            const url = `${API_BASE}/images/${activeImageId}/masked?r=${r}&g=${g}&b=${b}&t=${Date.now()}`
+            setMaskedImageUrl(url)
+        }
+    }, [activeImageId, visibleChannels])
 
     // Histogram refresh key — incremented after undo/redo/filter to re-fetch
     const [histogramRefreshKey, setHistogramRefreshKey] = useState(0)
@@ -234,12 +295,12 @@ export function AnalysisWorkspace() {
         setActivePlugin(plugin)
     }
 
-    // Category icon mapping
+    // Category icon mapping (updated for new category names)
     const categoryIcons: Record<string, string> = {
-        'Preprocessing': 'tune',
-        'Edge Detection': 'line_curve',
-        'Segmentation': 'category',
-        'Morphology': 'blur_on',
+        'Adjustments': 'tune',
+        'Filters': 'blur_on',
+        'Transform': 'transform',
+        'Analysis': 'analytics',
     }
 
     return (
@@ -272,7 +333,34 @@ export function AnalysisWorkspace() {
                     {/* File Explorer Section */}
                     <div className="flex flex-col border-b border-border-dark h-1/3 min-h-[200px]">
                         <div className="px-4 py-2 border-b border-border-dark flex justify-between items-center bg-panel-dark">
-                            <h3 className="text-xs font-semibold uppercase tracking-wider text-text-secondary">Explorer</h3>
+                            <div className="flex items-center gap-2">
+                                <h3 className="text-xs font-semibold uppercase tracking-wider text-text-secondary">Explorer</h3>
+                                {/* Mode tabs - only show File Browser in desktop mode */}
+                                {isElectron && (
+                                    <div className="flex bg-background-dark rounded-sm border border-border-dark overflow-hidden">
+                                        <button
+                                            onClick={() => setExplorerMode('uploads')}
+                                            className={`px-2 py-0.5 text-[9px] transition-colors ${explorerMode === 'uploads'
+                                                ? 'bg-primary/20 text-primary'
+                                                : 'text-text-secondary hover:text-white'
+                                                }`}
+                                            title="Uploaded Images"
+                                        >
+                                            Uploads
+                                        </button>
+                                        <button
+                                            onClick={() => setExplorerMode('filebrowser')}
+                                            className={`px-2 py-0.5 text-[9px] transition-colors ${explorerMode === 'filebrowser'
+                                                ? 'bg-primary/20 text-primary'
+                                                : 'text-text-secondary hover:text-white'
+                                                }`}
+                                            title="Browse File System"
+                                        >
+                                            Files
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
                             <div className="flex gap-2">
                                 <button
                                     onClick={handleImportClick}
@@ -292,67 +380,116 @@ export function AnalysisWorkspace() {
                             </div>
                         </div>
                         <div className="flex-1 overflow-y-auto p-2 space-y-1">
-                            {/* Upload indicator */}
-                            {isUploading && (
-                                <div className="flex items-center gap-3 bg-primary/10 border border-primary/20 px-2 py-2 rounded-sm animate-pulse">
-                                    <div className="size-10 shrink-0 bg-primary/20 rounded-sm flex items-center justify-center">
-                                        <span className="material-symbols-outlined text-primary text-[18px] animate-spin">progress_activity</span>
+                            {/* File Browser Mode */}
+                            {explorerMode === 'filebrowser' && (
+                                <>
+                                    {/* Current path breadcrumb */}
+                                    <div className="flex items-center gap-1 mb-2 text-[10px] text-text-secondary">
+                                        <button
+                                            onClick={() => setCurrentDirectory('/home')}
+                                            className="hover:text-white"
+                                        >
+                                            ~
+                                        </button>
+                                        <span>/</span>
+                                        <span className="truncate">{currentDirectory}</span>
                                     </div>
-                                    <div className="flex flex-col min-w-0">
-                                        <p className="text-primary text-xs font-medium">Uploading...</p>
-                                    </div>
-                                </div>
-                            )}
 
-                            {/* Empty state */}
-                            {images.length === 0 && !isUploading && (
-                                <div
-                                    className="flex flex-col items-center justify-center py-8 text-center cursor-pointer hover:bg-panel-dark rounded-sm transition-colors"
-                                    onClick={handleImportClick}
-                                >
-                                    <span className="material-symbols-outlined text-text-secondary/50 text-4xl mb-2">add_photo_alternate</span>
-                                    <p className="text-text-secondary/50 text-xs">Click to import images</p>
-                                    <p className="text-text-secondary/30 text-[10px] mt-1">PNG, JPG, TIFF supported</p>
-                                </div>
-                            )}
-
-                            {/* Dynamic file list from store */}
-                            {images.map((image) => {
-                                const isActive = image.id === activeImageId
-                                return (
-                                    <div
-                                        key={image.id}
-                                        onClick={() => setActiveImage(image.id)}
-                                        className={`flex items-center gap-3 px-2 py-2 rounded-sm cursor-pointer transition-colors ${isActive
-                                            ? 'bg-primary/20 border border-primary/30'
-                                            : 'hover:bg-panel-dark border border-transparent'
-                                            }`}
-                                    >
-                                        {/* Thumbnail with Delete Button */}
-                                        <div className="relative group/thumb">
+                                    {isLoadingDirectory ? (
+                                        <div className="flex items-center justify-center py-4">
+                                            <span className="material-symbols-outlined text-text-secondary animate-spin">progress_activity</span>
+                                        </div>
+                                    ) : (
+                                        directoryContents.map((entry) => (
                                             <div
-                                                className="rounded-sm size-10 shrink-0 bg-cover bg-center border border-border-dark"
-                                                style={{ backgroundImage: `url(${image.thumbnailUrl})` }}
-                                            />
-                                            <button
-                                                onClick={(e) => handleDeleteImage(e, image.id)}
-                                                className="absolute -top-1 -right-1 size-4 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover/thumb:opacity-100 transition-opacity shadow-sm"
-                                                title="Delete image"
+                                                key={entry.path}
+                                                onClick={() => {
+                                                    if (entry.type === 'directory') {
+                                                        setCurrentDirectory(entry.path)
+                                                    } else {
+                                                        // Load image file
+                                                        // TODO: Implement file loading from path
+                                                    }
+                                                }}
+                                                className="flex items-center gap-2 px-2 py-1.5 rounded-sm cursor-pointer hover:bg-panel-dark transition-colors"
                                             >
-                                                <span className="material-symbols-outlined text-[10px] font-bold">close</span>
-                                            </button>
+                                                <span className={`material-symbols-outlined text-[14px] ${entry.type === 'directory' ? 'text-yellow-500' : 'text-text-secondary'
+                                                    }`}>
+                                                    {entry.type === 'directory' ? 'folder' : 'image'}
+                                                </span>
+                                                <span className="text-xs text-text-secondary truncate">{entry.name}</span>
+                                            </div>
+                                        ))
+                                    )}
+                                </>
+                            )}
+
+                            {/* Uploads Mode (default) */}
+                            {explorerMode === 'uploads' && (
+                                <>
+                                    {/* Upload indicator */}
+                                    {isUploading && (
+                                        <div className="flex items-center gap-3 bg-primary/10 border border-primary/20 px-2 py-2 rounded-sm animate-pulse">
+                                            <div className="size-10 shrink-0 bg-primary/20 rounded-sm flex items-center justify-center">
+                                                <span className="material-symbols-outlined text-primary text-[18px] animate-spin">progress_activity</span>
+                                            </div>
+                                            <div className="flex flex-col min-w-0">
+                                                <p className="text-primary text-xs font-medium">Uploading...</p>
+                                            </div>
                                         </div>
-                                        <div className="flex flex-col min-w-0 flex-1">
-                                            <p className={`text-xs font-medium truncate font-mono ${isActive ? 'text-white' : 'text-text-secondary'}`}>
-                                                {image.name}
-                                            </p>
-                                            <p className={`text-[10px] truncate ${isActive ? 'text-primary' : 'text-text-secondary/60'}`}>
-                                                {isActive ? 'Active • ' : ''}{image.metadata.width}x{image.metadata.height} • {image.metadata.bitDepth}
-                                            </p>
+                                    )}
+
+                                    {/* Empty state */}
+                                    {images.length === 0 && !isUploading && (
+                                        <div
+                                            className="flex flex-col items-center justify-center py-8 text-center cursor-pointer hover:bg-panel-dark rounded-sm transition-colors"
+                                            onClick={handleImportClick}
+                                        >
+                                            <span className="material-symbols-outlined text-text-secondary/50 text-4xl mb-2">add_photo_alternate</span>
+                                            <p className="text-text-secondary/50 text-xs">Click to import images</p>
+                                            <p className="text-text-secondary/30 text-[10px] mt-1">PNG, JPG, TIFF supported</p>
                                         </div>
-                                    </div>
-                                )
-                            })}
+                                    )}
+
+                                    {/* Dynamic file list from store */}
+                                    {images.map((image) => {
+                                        const isActive = image.id === activeImageId
+                                        return (
+                                            <div
+                                                key={image.id}
+                                                onClick={() => setActiveImage(image.id)}
+                                                className={`flex items-center gap-3 px-2 py-2 rounded-sm cursor-pointer transition-colors ${isActive
+                                                    ? 'bg-primary/20 border border-primary/30'
+                                                    : 'hover:bg-panel-dark border border-transparent'
+                                                    }`}
+                                            >
+                                                {/* Thumbnail with Delete Button */}
+                                                <div className="relative group/thumb">
+                                                    <div
+                                                        className="rounded-sm size-10 shrink-0 bg-cover bg-center border border-border-dark"
+                                                        style={{ backgroundImage: `url(${image.thumbnailUrl})` }}
+                                                    />
+                                                    <button
+                                                        onClick={(e) => handleDeleteImage(e, image.id)}
+                                                        className="absolute -top-1 -right-1 size-4 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover/thumb:opacity-100 transition-opacity shadow-sm"
+                                                        title="Delete image"
+                                                    >
+                                                        <span className="material-symbols-outlined text-[10px] font-bold">close</span>
+                                                    </button>
+                                                </div>
+                                                <div className="flex flex-col min-w-0 flex-1">
+                                                    <p className={`text-xs font-medium truncate font-mono ${isActive ? 'text-white' : 'text-text-secondary'}`}>
+                                                        {image.name}
+                                                    </p>
+                                                    <p className={`text-[10px] truncate ${isActive ? 'text-primary' : 'text-text-secondary/60'}`}>
+                                                        {isActive ? 'Active • ' : ''}{image.metadata.width}x{image.metadata.height} • {image.metadata.bitDepth}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        )
+                                    })}
+                                </>
+                            )}
                         </div>
                     </div>
 
@@ -546,9 +683,9 @@ export function AnalysisWorkspace() {
                             }}
                         >
                             {activeImage ? (
-                                /* Display the active image */
+                                /* Display the active image (or masked version when channels are toggled) */
                                 <img
-                                    src={activeImage.url}
+                                    src={maskedImageUrl || activeImage.url}
                                     alt={activeImage.name}
                                     className="max-w-[none] pointer-events-none select-none"
                                     draggable={false}

@@ -21,12 +21,19 @@ export function ShortcutsModal() {
     if (!isShortcutsOpen) return null
 
     const shortcuts = [
+        // General
         { key: '?', desc: 'Toggle shortcuts popup' },
         { key: 'Cmd/Ctrl + K', desc: 'Command palette (future)' },
         { key: 'Space', desc: 'Pan mode (hold)' },
         { key: 'Mouse Wheel', desc: 'Zoom in/out' },
         { key: 'Cmd/Ctrl + Click', desc: 'Reset zoom' },
         { key: 'Arrow Keys', desc: 'Nudge view' },
+        // Compare mode
+        { key: 'S', desc: 'Side-by-Side mode (Compare)' },
+        { key: 'W', desc: 'Swipe mode (Compare)' },
+        { key: 'B', desc: 'Swap Box mode (Compare)' },
+        { key: 'D', desc: 'Difference mode (Compare)' },
+        { key: '1 / 2 / 3', desc: 'Cycle images for slot A / B / C' },
     ]
 
     return (
