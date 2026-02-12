@@ -135,7 +135,7 @@ async def run_plugin(request: PluginRunRequest):
         
         image_cache[result_id] = {
             "path": result_path,
-            "original_name": f"{request.plugin_name}_result.png",
+            "original_name": f"{Path(source_entry['original_name']).stem}_{request.plugin_name}.png",
             "metadata": ImageMetadata(
                 width=w,
                 height=h,

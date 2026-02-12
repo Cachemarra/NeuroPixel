@@ -5,6 +5,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { commands } from '@/lib/commands'
+import { useAppStore } from '@/store/appStore'
 
 interface MenuItem {
     label: string
@@ -19,60 +20,105 @@ interface Menu {
     items: MenuItem[]
 }
 
-const menus: Menu[] = [
-    {
-        label: 'File',
-        items: [
-            { label: 'Open Image...', action: commands.file.openImage, shortcut: 'Ctrl+O' },
-            { label: 'Open Folder...', action: commands.file.openFolder, shortcut: 'Ctrl+Shift+O' },
-            { separator: true, label: '' },
-            { label: 'Export Result...', action: commands.file.exportResult, shortcut: 'Ctrl+E' },
-            { separator: true, label: '' },
-            { label: 'Exit', action: commands.file.exit },
-        ],
-    },
-    {
-        label: 'Edit',
-        items: [
-            { label: 'Undo', action: commands.edit.undo, shortcut: 'Ctrl+Z', disabled: true },
-            { label: 'Redo', action: commands.edit.redo, shortcut: 'Ctrl+Y', disabled: true },
-            { separator: true, label: '' },
-            { label: 'Copy Metrics', action: commands.edit.copyMetrics },
-        ],
-    },
-    {
-        label: 'View',
-        items: [
-            { label: 'Zoom In', action: commands.view.zoomIn, shortcut: 'Ctrl++' },
-            { label: 'Zoom Out', action: commands.view.zoomOut, shortcut: 'Ctrl+-' },
-            { label: 'Fit to View', action: commands.view.fit, shortcut: 'Ctrl+0' },
-            { separator: true, label: '' },
-            { label: 'Toggle Comparison', action: commands.view.toggleComparison },
-        ],
-    },
-    {
-        label: 'Pipeline',
-        items: [
-            { label: 'Open Editor', action: commands.pipeline.openEditor },
-            { label: 'Run Batch...', action: commands.pipeline.runBatch },
-            { separator: true, label: '' },
-            { label: 'Reload Plugins', action: commands.pipeline.reloadPlugins },
-            { label: 'Open Plugins Folder', action: commands.pipeline.openPluginsFolder },
-        ],
-    },
-    {
-        label: 'Help',
-        items: [
-            { label: 'Keyboard Shortcuts', action: commands.help.shortcuts },
-            { separator: true, label: '' },
-            { label: 'About LumaGraph', action: commands.help.about },
-        ],
-    },
-]
-
 export function AppMenuBar() {
     const [openMenu, setOpenMenu] = useState<string | null>(null)
     const menuRef = useRef<HTMLDivElement>(null)
+
+    // Subscribe to undo/redo state reactively
+    const undoStackLength = useAppStore((state) => state.undoStack.length)
+    const redoStackLength = useAppStore((state) => state.redoStack.length)
+
+    const handleUndo = () => {
+        const state = useAppStore.getState()
+        const currentImage = state.images.find(img => img.id === state.activeImageId)
+        if (!currentImage) return
+        const currentSnapshot = {
+            imageId: currentImage.id,
+            url: currentImage.url,
+            thumbnailUrl: currentImage.thumbnailUrl,
+            name: currentImage.name,
+        }
+        const entry = state.undo(currentSnapshot)
+        if (entry) {
+            useAppStore.getState().updateImage(entry.imageId, {
+                url: entry.url + (entry.url.includes('?') ? '&' : '?') + 't=' + Date.now(),
+                thumbnailUrl: entry.thumbnailUrl + (entry.thumbnailUrl.includes('?') ? '&' : '?') + 't=' + Date.now(),
+                name: entry.name,
+            })
+        }
+    }
+
+    const handleRedo = () => {
+        const state = useAppStore.getState()
+        const currentImage = state.images.find(img => img.id === state.activeImageId)
+        if (!currentImage) return
+        const currentSnapshot = {
+            imageId: currentImage.id,
+            url: currentImage.url,
+            thumbnailUrl: currentImage.thumbnailUrl,
+            name: currentImage.name,
+        }
+        const entry = state.redo(currentSnapshot)
+        if (entry) {
+            useAppStore.getState().updateImage(entry.imageId, {
+                url: entry.url + (entry.url.includes('?') ? '&' : '?') + 't=' + Date.now(),
+                thumbnailUrl: entry.thumbnailUrl + (entry.thumbnailUrl.includes('?') ? '&' : '?') + 't=' + Date.now(),
+                name: entry.name,
+            })
+        }
+    }
+
+    // Build menus inside the component body so they can access store state
+    const menus: Menu[] = [
+        {
+            label: 'File',
+            items: [
+                { label: 'Open Image...', action: commands.file.openImage, shortcut: 'Ctrl+O' },
+                { label: 'Open Folder...', action: commands.file.openFolder, shortcut: 'Ctrl+Shift+O' },
+                { separator: true, label: '' },
+                { label: 'Export Result...', action: commands.file.exportResult, shortcut: 'Ctrl+E' },
+                { separator: true, label: '' },
+                { label: 'Exit', action: commands.file.exit },
+            ],
+        },
+        {
+            label: 'Edit',
+            items: [
+                { label: 'Undo', action: handleUndo, shortcut: 'Ctrl+Z', disabled: undoStackLength === 0 },
+                { label: 'Redo', action: handleRedo, shortcut: 'Ctrl+Y', disabled: redoStackLength === 0 },
+                { separator: true, label: '' },
+                { label: 'Copy Metrics', action: commands.edit.copyMetrics },
+            ],
+        },
+        {
+            label: 'View',
+            items: [
+                { label: 'Zoom In', action: commands.view.zoomIn, shortcut: 'Ctrl++' },
+                { label: 'Zoom Out', action: commands.view.zoomOut, shortcut: 'Ctrl+-' },
+                { label: 'Fit to View', action: commands.view.fit, shortcut: 'Ctrl+0' },
+                { separator: true, label: '' },
+                { label: 'Toggle Comparison', action: commands.view.toggleComparison },
+            ],
+        },
+        {
+            label: 'Pipeline',
+            items: [
+                { label: 'Open Editor', action: commands.pipeline.openEditor },
+                { label: 'Run Batch...', action: commands.pipeline.runBatch },
+                { separator: true, label: '' },
+                { label: 'Reload Plugins', action: commands.pipeline.reloadPlugins },
+                { label: 'Open Plugins Folder', action: commands.pipeline.openPluginsFolder },
+            ],
+        },
+        {
+            label: 'Help',
+            items: [
+                { label: 'Keyboard Shortcuts', action: commands.help.shortcuts },
+                { separator: true, label: '' },
+                { label: 'About LumaGraph', action: commands.help.about },
+            ],
+        },
+    ]
 
     // Close menu when clicking outside
     useEffect(() => {
@@ -143,3 +189,4 @@ export function AppMenuBar() {
         </div>
     )
 }
+

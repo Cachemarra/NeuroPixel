@@ -208,6 +208,26 @@ export function AnalysisWorkspace() {
                 const statsResponse = await fetch(`${API_BASE}/images/${activeImageId}/statistics`)
                 if (statsResponse.ok) {
                     const statsData = await statsResponse.json()
+
+                    // If we have per-channel stats and some channels are hidden, re-compute summary
+                    if (statsData.channels) {
+                        const channelNames = Object.keys(statsData.channels) // e.g. ["red","green","blue"]
+                        const activeChannels = channelNames.filter(ch => visibleChannels.has(ch))
+
+                        if (activeChannels.length > 0 && activeChannels.length < channelNames.length) {
+                            // Recompute weighted stats from visible channels only
+                            const means = activeChannels.map(ch => statsData.channels[ch].mean)
+                            const stds = activeChannels.map(ch => statsData.channels[ch].std)
+                            const mins = activeChannels.map(ch => statsData.channels[ch].min)
+                            const maxs = activeChannels.map(ch => statsData.channels[ch].max)
+
+                            statsData.mean = parseFloat((means.reduce((a: number, b: number) => a + b, 0) / means.length).toFixed(2))
+                            statsData.std = parseFloat((stds.reduce((a: number, b: number) => a + b, 0) / stds.length).toFixed(2))
+                            statsData.min = Math.min(...mins)
+                            statsData.max = Math.max(...maxs)
+                        }
+                    }
+
                     setStatisticsData(statsData)
                 }
             } catch (err) {
@@ -216,7 +236,7 @@ export function AnalysisWorkspace() {
         }
 
         fetchData()
-    }, [activeImageId, histogramRefreshKey])
+    }, [activeImageId, histogramRefreshKey, visibleChannels])
 
     // Get active image data
     const activeImage = images.find(img => img.id === activeImageId)
@@ -256,13 +276,12 @@ export function AnalysisWorkspace() {
 
     const handleDeleteAll = async () => {
         if (!confirm('Are you sure you want to delete all images?')) return
+        // Clear frontend state immediately so the UI updates
+        clearImages()
         try {
-            const response = await fetch(`${API_BASE}/images`, { method: 'DELETE' })
-            if (response.ok) {
-                clearImages()
-            }
+            await fetch(`${API_BASE}/images`, { method: 'DELETE' })
         } catch (err) {
-            console.error('Failed to delete images:', err)
+            console.error('Failed to delete images on backend:', err)
         }
     }
 

@@ -185,14 +185,11 @@ export const useAppStore = create<AppState>((set, get) => ({
                     newImages[existingResultIndex] = {
                         ...newImages[existingResultIndex],
                         ...image,
-                        id: newImages[existingResultIndex].id,
                     }
                     return {
                         images: newImages,
-                        // Only keep it active if it was already active, otherwise preserve current active
-                        activeImageId: state.activeImageId === newImages[existingResultIndex].id
-                            ? newImages[existingResultIndex].id
-                            : state.activeImageId,
+                        // Always activate the replacement so the view shows the new result
+                        activeImageId: image.id,
                     }
                 }
             }

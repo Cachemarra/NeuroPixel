@@ -12,7 +12,7 @@ interface PluginControllerProps {
     onClose?: () => void
 }
 
-export function PluginController({ spec, onClose }: PluginControllerProps) {
+export function PluginController({ spec, onClose: _onClose }: PluginControllerProps) {
     const { activeImageId, images } = useAppStore()
     const { mutate: runPlugin, isPending, isError, error } = useRunPlugin()
 

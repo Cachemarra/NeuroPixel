@@ -3,7 +3,7 @@
  * Shows different options based on what was clicked (canvas vs node)
  */
 
-import { useCallback, useEffect, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { NODE_TYPE_DEFINITIONS, type NodeTypeKey } from '@/types/nodeGraph'
 import type { PluginSpec } from '@/types/plugin'
 

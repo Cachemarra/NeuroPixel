@@ -150,9 +150,11 @@ class ImagePlugin(ABC):
             if name in kwargs:
                 validated[name] = kwargs[name]
             elif param.type == "range":
-                # For range params, use defaults
-                validated[f"{name}_low"] = param.default_low
-                validated[f"{name}_high"] = param.default_high
+                # For range params, check for _low/_high suffixed keys first
+                low_key = f"{name}_low"
+                high_key = f"{name}_high"
+                validated[low_key] = kwargs.get(low_key, param.default_low)
+                validated[high_key] = kwargs.get(high_key, param.default_high)
             else:
                 validated[name] = param.default
                 

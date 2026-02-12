@@ -84,7 +84,7 @@ class DenoisePlugin(ImagePlugin):
                     image,
                     None,
                     h=strength,
-                    hForColorComponents=color_strength,
+                    hColor=color_strength,
                     templateWindowSize=7,
                     searchWindowSize=21
                 )

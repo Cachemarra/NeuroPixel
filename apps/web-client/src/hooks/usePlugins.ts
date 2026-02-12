@@ -1,7 +1,7 @@
 /**
  * Hooks for interacting with the plugin system
  */
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation } from '@tanstack/react-query'
 import { useAppStore } from '@/store/appStore'
 import type {
     PluginListResponse,
@@ -121,7 +121,6 @@ export function usePluginsByCategory() {
  * subsequent operations REPLACE the copy with updated version, preserving the original.
  */
 export function useRunPlugin() {
-    const queryClient = useQueryClient()
     const { addImage, removeImage, images, setActiveImage } = useAppStore()
 
     return useMutation<PluginRunResponse, Error, PluginRunRequest>({
@@ -201,8 +200,7 @@ export function useRunPlugin() {
                 setActiveImage(data.result_id)
             }
 
-            // Note: Not invalidating image queries since we manage state in zustand directly
-            // queryClient.invalidateQueries({ queryKey: ['images'] })
+            // State managed directly in zustand, no query invalidation needed
         },
     })
 }

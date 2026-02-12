@@ -30,7 +30,7 @@ export function BatchProgressModal() {
     const [error, setError] = useState<string | null>(null)
 
     // Use the hybrid folder picker
-    const { openFolderPicker, isModalOpen, closeModal, handleModalSelect } = useFolderPicker(
+    const { isModalOpen, closeModal, handleModalSelect } = useFolderPicker(
         (path) => setInputFolder(path),
         inputFolder
     )
