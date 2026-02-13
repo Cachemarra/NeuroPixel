@@ -51,7 +51,8 @@ function BaseNodeComponent({
 }: BaseNodeProps) {
     const { label, icon, inputs, outputs, collapsed = false, disabled = false, headerColor: dataHeaderColor } = data
     const updateNodeInternals = useUpdateNodeInternals()
-    const { toggleNodeDisabled } = useAppStore()
+    const { toggleNodeDisabled, pipelineCurrentNodeId } = useAppStore()
+    const isExecuting = pipelineCurrentNodeId === id
 
     // Use data.headerColor if set, otherwise use prop
     const effectiveHeaderColor = (dataHeaderColor as string) || headerColor
@@ -80,9 +81,11 @@ function BaseNodeComponent({
                     bg-surface-dark border rounded-lg
                     transition-all duration-200 flex flex-col
                     ${disabled ? 'opacity-40 grayscale-[0.5] contrast-[0.8]' : 'opacity-100'}
-                    ${selected
-                        ? 'border-primary shadow-lg shadow-primary/20'
-                        : 'border-border-dark shadow-md'
+                    ${isExecuting
+                        ? 'border-green-400 shadow-lg shadow-green-400/30 ring-2 ring-green-400/40 animate-pulse'
+                        : selected
+                            ? 'border-primary shadow-lg shadow-primary/20'
+                            : 'border-border-dark shadow-md'
                     }
                 `}
             >

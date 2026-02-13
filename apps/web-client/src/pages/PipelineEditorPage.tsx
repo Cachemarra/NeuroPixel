@@ -29,6 +29,7 @@ import type { PipelineEdge, PipelineNode, NodeTypeKey } from '@/types/nodeGraph'
 import type { LoadImageNodeData, SaveImageNodeData, MarkdownNoteNodeData, PreviewNodeData, OperatorNodeData } from '@/types/nodeGraph'
 import { NODE_TYPE_DEFINITIONS } from '@/types/nodeGraph'
 import type { PluginSpec } from '@/types/plugin'
+import { API_BASE } from '@/config'
 
 function PipelineEditorContent() {
     const {
@@ -62,6 +63,7 @@ function PipelineEditorContent() {
     const { categories } = usePluginsByCategory()
     const reactFlowInstance = useReactFlow()
     const reactFlowWrapper = useRef<HTMLDivElement>(null)
+    const executionAbortRef = useRef<AbortController | null>(null)
 
     const [isPaletteOpen, setIsPaletteOpen] = useState(false)
 
@@ -98,20 +100,23 @@ function PipelineEditorContent() {
     // Keyboard shortcuts
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+            // Don't intercept keys when user is typing in an input or textarea
+            const tag = (e.target as HTMLElement)?.tagName
+            const isEditing = tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable
+
+            if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !isEditing) {
                 e.preventDefault()
                 undoPipeline()
             }
-            if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'Z' && e.shiftKey))) {
+            if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'Z' && e.shiftKey)) && !isEditing) {
                 e.preventDefault()
                 redoPipeline()
             }
-            if (e.key === 'Delete' || e.key === 'Backspace') {
+            if ((e.key === 'Delete' || e.key === 'Backspace') && !isEditing) {
                 const selectedNodes = reactFlowInstance.getNodes().filter(n => n.selected)
                 const selectedEdges = reactFlowInstance.getEdges().filter(e => e.selected)
                 if (selectedNodes.length > 0 || selectedEdges.length > 0) {
                     selectedNodes.forEach(n => removeNode(n.id))
-                    // Edges are handled by React Flow mostly, but we trigger removeNode which cleans edges
                 }
             }
         }
@@ -256,20 +261,77 @@ function PipelineEditorContent() {
         addNode(node)
     }, [addNode, getNewNodePosition])
 
+    // Build topological execution order from the graph edges
+    const getExecutionOrder = useCallback((): PipelineNode[] => {
+        // Build adjacency list from edges
+        const adjacency = new Map<string, string[]>()
+        const inDegree = new Map<string, number>()
+
+        for (const node of pipelineNodes) {
+            adjacency.set(node.id, [])
+            inDegree.set(node.id, 0)
+        }
+
+        for (const edge of pipelineEdges) {
+            const targets = adjacency.get(edge.source)
+            if (targets) targets.push(edge.target)
+            inDegree.set(edge.target, (inDegree.get(edge.target) || 0) + 1)
+        }
+
+        // Kahn's algorithm for topological sort
+        const queue: string[] = []
+        for (const [nodeId, degree] of inDegree) {
+            if (degree === 0) queue.push(nodeId)
+        }
+
+        // Sort roots by X-position for deterministic ordering
+        const nodeMap = new Map(pipelineNodes.map(n => [n.id, n]))
+        queue.sort((a, b) => (nodeMap.get(a)?.position.x ?? 0) - (nodeMap.get(b)?.position.x ?? 0))
+
+        const sorted: PipelineNode[] = []
+        while (queue.length > 0) {
+            const current = queue.shift()!
+            const node = nodeMap.get(current)
+            if (node) sorted.push(node)
+
+            for (const neighbor of adjacency.get(current) || []) {
+                const newDegree = (inDegree.get(neighbor) || 1) - 1
+                inDegree.set(neighbor, newDegree)
+                if (newDegree === 0) queue.push(neighbor)
+            }
+        }
+
+        // If there are disconnected nodes not reached by edges, fall back to X-sort for those
+        if (sorted.length < pipelineNodes.length) {
+            const inSorted = new Set(sorted.map(n => n.id))
+            const remaining = pipelineNodes
+                .filter(n => !inSorted.has(n.id))
+                .sort((a, b) => a.position.x - b.position.x)
+            sorted.push(...remaining)
+        }
+
+        return sorted
+    }, [pipelineNodes, pipelineEdges])
+
     // Execute pipeline with actual backend calls
     const handleExecutePipeline = useCallback(async () => {
         if (isPipelineExecuting) {
+            // Cancel in-flight execution
+            executionAbortRef.current?.abort()
             stopPipelineExecution()
             return
         }
 
         if (pipelineNodes.length === 0) return
 
+        const abortController = new AbortController()
+        executionAbortRef.current = abortController
+
         startPipelineExecution()
 
         try {
-            // Traverse nodes by X-position for a simple execution order
-            const executableNodes = [...pipelineNodes].sort((a, b) => a.position.x - b.position.x)
+            // Use topological order based on edges
+            const executableNodes = getExecutionOrder()
 
             // Find initial image from the first load_image node
             const loadNode = executableNodes.find(n => n.type === 'load_image') as PipelineNode | undefined
@@ -286,9 +348,15 @@ function PipelineEditorContent() {
             }
 
             let stepCount = 0
-            const totalSteps = executableNodes.filter(n => n.type === 'operator' || n.type === 'save_image' || n.type === 'preview').length
+            const totalSteps = executableNodes.filter(n => n.type === 'operator' || n.type === 'save_image' || n.type === 'preview').length || 1
 
             for (const node of executableNodes) {
+                // Check for cancellation between steps
+                if (abortController.signal.aborted) {
+                    updatePipelineProgress(0, null, 'Pipeline cancelled')
+                    return
+                }
+
                 if (node.data.disabled) continue
 
                 if (node.type === 'operator') {
@@ -299,9 +367,10 @@ function PipelineEditorContent() {
                         `Running: ${data.label}`
                     )
 
-                    const response = await fetch('http://localhost:8005/plugins/run', {
+                    const response = await fetch(`${API_BASE}/plugins/run`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
+                        signal: abortController.signal,
                         body: JSON.stringify({
                             image_id: currentImageId,
                             plugin_name: data.pluginName,
@@ -312,6 +381,15 @@ function PipelineEditorContent() {
                     if (response.ok) {
                         const result = await response.json()
                         currentImageId = result.result_id
+                    } else {
+                        const errBody = await response.json().catch(() => ({ detail: response.statusText }))
+                        const errMsg = errBody.detail || `HTTP ${response.status}`
+                        updatePipelineProgress(
+                            (stepCount / totalSteps) * 100,
+                            node.id,
+                            `Error in ${data.label}: ${errMsg}`
+                        )
+                        // Continue with existing image — skip this node's output
                     }
                     stepCount++
                 } else if (node.type === 'preview') {
@@ -321,12 +399,14 @@ function PipelineEditorContent() {
                         'Updating preview...'
                     )
 
-                    // Update the preview URL for this node
                     if (currentImageId) {
-                        const imgResponse = await fetch(`http://localhost:8005/images/${currentImageId}/metadata`)
+                        const imgResponse = await fetch(
+                            `${API_BASE}/images/${currentImageId}/metadata`,
+                            { signal: abortController.signal }
+                        )
                         if (imgResponse.ok) {
                             const imgData = await imgResponse.json()
-                            updateNodeData(node.id, { previewUrl: imgData.url || `http://localhost:8005/images/${currentImageId}/preview` })
+                            updateNodeData(node.id, { previewUrl: imgData.url || `${API_BASE}/images/${currentImageId}/preview` })
                         }
                     }
                     stepCount++
@@ -338,9 +418,10 @@ function PipelineEditorContent() {
                         'Saving image...'
                     )
 
-                    await fetch('http://localhost:8005/plugins/run', {
+                    const response = await fetch(`${API_BASE}/plugins/run`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
+                        signal: abortController.signal,
                         body: JSON.stringify({
                             image_id: currentImageId,
                             plugin_name: 'save_image',
@@ -351,17 +432,95 @@ function PipelineEditorContent() {
                             }
                         })
                     })
+
+                    if (!response.ok) {
+                        const errBody = await response.json().catch(() => ({ detail: response.statusText }))
+                        updatePipelineProgress(
+                            (stepCount / totalSteps) * 100,
+                            node.id,
+                            `Save error: ${errBody.detail || `HTTP ${response.status}`}`
+                        )
+                    }
                     stepCount++
                 }
             }
 
             updatePipelineProgress(100, null, 'Pipeline completed!')
         } catch (err: any) {
-            updatePipelineProgress(0, null, `Error: ${err.message}`)
+            if (err.name === 'AbortError') {
+                updatePipelineProgress(0, null, 'Pipeline cancelled')
+            } else {
+                updatePipelineProgress(0, null, `Error: ${err.message}`)
+            }
         } finally {
+            executionAbortRef.current = null
             setTimeout(stopPipelineExecution, 1500)
         }
-    }, [isPipelineExecuting, pipelineNodes, images, startPipelineExecution, updatePipelineProgress, stopPipelineExecution, updateNodeData])
+    }, [isPipelineExecuting, pipelineNodes, pipelineEdges, images, startPipelineExecution, updatePipelineProgress, stopPipelineExecution, updateNodeData, getExecutionOrder])
+
+    // Open Save Workflow dialog
+    const handleSaveWorkflow = useCallback(() => {
+        setSaveWorkflowName(pipelineName || 'Untitled Workflow')
+        setSaveWorkflowDialogOpen(true)
+    }, [pipelineName])
+
+    // Load workflow from JSON with validation
+    const handleLoadWorkflow = useCallback(() => {
+        const input = document.createElement('input')
+        input.type = 'file'
+        input.accept = '.json'
+        input.onchange = async (e) => {
+            const file = (e.target as HTMLInputElement).files?.[0]
+            if (!file) return
+
+            try {
+                const text = await file.text()
+                const workflow = JSON.parse(text)
+
+                // Validate workflow structure
+                if (typeof workflow !== 'object' || workflow === null) {
+                    throw new Error('Invalid workflow: not an object')
+                }
+                if (workflow.nodes && !Array.isArray(workflow.nodes)) {
+                    throw new Error('Invalid workflow: nodes must be an array')
+                }
+                if (workflow.edges && !Array.isArray(workflow.edges)) {
+                    throw new Error('Invalid workflow: edges must be an array')
+                }
+                // Validate each node has required fields
+                if (workflow.nodes) {
+                    for (const node of workflow.nodes) {
+                        if (!node.id || !node.type || !node.position || !node.data) {
+                            throw new Error('Invalid workflow: node missing required fields (id, type, position, data)')
+                        }
+                    }
+                }
+
+                clearGraph()
+                if (typeof workflow.name === 'string') {
+                    setPipelineName(workflow.name)
+                }
+                if (workflow.nodes) {
+                    setNodes(workflow.nodes)
+                }
+                if (workflow.edges) {
+                    setEdges(workflow.edges)
+                }
+            } catch (err: any) {
+                console.error('Failed to load workflow:', err)
+                alert(`Failed to load workflow: ${err.message}`)
+            }
+        }
+        input.click()
+    }, [clearGraph, setPipelineName, setNodes, setEdges])
+
+    // Clear graph with confirmation
+    const handleClearGraph = useCallback(() => {
+        if (pipelineNodes.length === 0) return
+        if (window.confirm(`Clear all ${pipelineNodes.length} node(s)? This cannot be undone.`)) {
+            clearGraph()
+        }
+    }, [pipelineNodes.length, clearGraph])
 
     // Handle right-click on canvas (not on node)
     const handlePaneContextMenu = useCallback((event: React.MouseEvent | MouseEvent) => {
@@ -403,7 +562,7 @@ function PipelineEditorContent() {
             {
                 label: 'Clear All Nodes',
                 icon: 'delete_sweep',
-                action: clearGraph,
+                action: handleClearGraph,
                 danger: true,
                 disabled: pipelineNodes.length === 0,
             },
@@ -411,7 +570,7 @@ function PipelineEditorContent() {
 
         setContextMenuItems(items)
         setContextMenuPosition({ x: event.clientX, y: event.clientY })
-    }, [pipelineNodes.length, clearGraph, reactFlowInstance])
+    }, [pipelineNodes.length, clearGraph, handleClearGraph, reactFlowInstance, isPipelineExecuting, handleExecutePipeline, handleSaveWorkflow, handleLoadWorkflow])
 
     // Handle right-click on node
     const handleNodeContextMenu: NodeMouseHandler = useCallback((event, node) => {
@@ -439,11 +598,12 @@ function PipelineEditorContent() {
                 label: 'Duplicate Node',
                 icon: 'content_copy',
                 action: () => {
-                    const newNode = {
+                    const newNode: PipelineNode = {
                         ...(node as PipelineNode),
                         id: crypto.randomUUID(),
                         position: { x: node.position.x + 50, y: node.position.y + 50 },
-                    } as PipelineNode
+                        data: JSON.parse(JSON.stringify(node.data)),
+                    }
                     addNode(newNode)
                 },
             },
@@ -464,7 +624,7 @@ function PipelineEditorContent() {
 
         setContextMenuItems(items)
         setContextMenuPosition({ x: event.clientX, y: event.clientY })
-    }, [addNode, removeNode])
+    }, [addNode, removeNode, toggleNodeDisabled])
 
     // Close context menus
     const closeContextMenus = useCallback(() => {
@@ -487,12 +647,6 @@ function PipelineEditorContent() {
         setRenameValue('')
     }, [renameNodeId, renameValue, updateNodeData])
 
-    // Open Save Workflow dialog
-    const handleSaveWorkflow = useCallback(() => {
-        setSaveWorkflowName(pipelineName || 'Untitled Workflow')
-        setSaveWorkflowDialogOpen(true)
-    }, [pipelineName])
-
     // Confirm save workflow
     const confirmSaveWorkflow = useCallback(() => {
         const workflow = {
@@ -510,35 +664,6 @@ function PipelineEditorContent() {
         setSaveWorkflowDialogOpen(false)
         setPipelineName(saveWorkflowName)
     }, [saveWorkflowName, pipelineNodes, pipelineEdges, setPipelineName])
-
-    // Load workflow from JSON
-    const handleLoadWorkflow = useCallback(() => {
-        const input = document.createElement('input')
-        input.type = 'file'
-        input.accept = '.json'
-        input.onchange = async (e) => {
-            const file = (e.target as HTMLInputElement).files?.[0]
-            if (!file) return
-
-            try {
-                const text = await file.text()
-                const workflow = JSON.parse(text)
-                clearGraph()
-                if (workflow.name) {
-                    setPipelineName(workflow.name)
-                }
-                if (workflow.nodes) {
-                    setNodes(workflow.nodes)
-                }
-                if (workflow.edges) {
-                    setEdges(workflow.edges)
-                }
-            } catch (err) {
-                console.error('Failed to load workflow:', err)
-            }
-        }
-        input.click()
-    }, [clearGraph, setPipelineName, setNodes, setEdges])
 
     return (
         <div className="flex-1 flex flex-col bg-background-dark overflow-hidden">
@@ -594,7 +719,7 @@ function PipelineEditorContent() {
                     {/* Clear Button */}
                     {pipelineNodes.length > 0 && (
                         <button
-                            onClick={clearGraph}
+                            onClick={handleClearGraph}
                             className="px-3 py-2 text-sm text-text-secondary hover:text-red-400 transition-colors"
                         >
                             Clear All
@@ -666,8 +791,8 @@ function PipelineEditorContent() {
                             </div>
                         ) : (
                             <div className="space-y-1">
-                                {pipelineNodes
-                                    .sort((a, b) => a.position.x - b.position.x) // Sort visually by X
+                                {[...pipelineNodes]
+                                    .sort((a, b) => a.position.x - b.position.x) // Sort visually by X (non-mutating copy)
                                     .map((node, index) => (
                                         <div
                                             key={node.id}

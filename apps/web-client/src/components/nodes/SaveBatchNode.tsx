@@ -2,6 +2,7 @@ import { memo, useCallback } from 'react'
 import { Handle, Position, NodeProps } from '@xyflow/react'
 import { useAppStore } from '@/store/appStore'
 import { SaveBatchNodeData } from '@/types/nodeGraph'
+import { API_BASE } from '@/config'
 
 export const SaveBatchNode = memo(({ id, data, isConnectable }: NodeProps) => {
     const updateNodeData = useAppStore((state) => state.updateNodeData)
@@ -56,7 +57,7 @@ export const SaveBatchNode = memo(({ id, data, isConnectable }: NodeProps) => {
                             <button
                                 onClick={async () => {
                                     try {
-                                        const response = await fetch('http://localhost:8005/system/pick-directory')
+                                        const response = await fetch(`${API_BASE}/system/pick-directory`)
                                         const data = await response.json()
                                         if (data.success && data.path) {
                                             updateNodeData(id, { output_folder: data.path })

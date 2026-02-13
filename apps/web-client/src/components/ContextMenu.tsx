@@ -3,7 +3,7 @@
  * Shows different options based on what was clicked (canvas vs node)
  */
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { NODE_TYPE_DEFINITIONS, type NodeTypeKey } from '@/types/nodeGraph'
 import type { PluginSpec } from '@/types/plugin'
 
@@ -29,6 +29,7 @@ interface ContextMenuProps {
 
 export function ContextMenu({ position, items, onClose }: ContextMenuProps) {
     const menuRef = useRef<HTMLDivElement>(null)
+    const [adjustedPos, setAdjustedPos] = useState(position)
 
     // Close on click outside
     useEffect(() => {
@@ -53,6 +54,18 @@ export function ContextMenu({ position, items, onClose }: ContextMenuProps) {
         }
     }, [onClose])
 
+    // Clamp position to viewport
+    useEffect(() => {
+        if (!position || !menuRef.current) {
+            setAdjustedPos(position)
+            return
+        }
+        const rect = menuRef.current.getBoundingClientRect()
+        const x = Math.min(position.x, window.innerWidth - rect.width - 8)
+        const y = Math.min(position.y, window.innerHeight - rect.height - 8)
+        setAdjustedPos({ x: Math.max(0, x), y: Math.max(0, y) })
+    }, [position])
+
     if (!position) return null
 
     return (
@@ -60,8 +73,8 @@ export function ContextMenu({ position, items, onClose }: ContextMenuProps) {
             ref={menuRef}
             className="fixed z-50 min-w-[200px] bg-surface-dark border border-border-dark rounded-lg shadow-2xl py-1 animate-in fade-in zoom-in-95 duration-100"
             style={{
-                left: position.x,
-                top: position.y,
+                left: adjustedPos?.x ?? position.x,
+                top: adjustedPos?.y ?? position.y,
             }}
         >
             {items.map((item, index) => {
@@ -127,6 +140,7 @@ export function AddNodeSubmenu({
     onClose,
 }: AddNodeSubmenuProps) {
     const menuRef = useRef<HTMLDivElement>(null)
+    const [adjustedPos, setAdjustedPos] = useState(position)
 
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
@@ -139,6 +153,18 @@ export function AddNodeSubmenu({
         return () => document.removeEventListener('mousedown', handleClickOutside)
     }, [onClose])
 
+    // Clamp position to viewport
+    useEffect(() => {
+        if (!position || !menuRef.current) {
+            setAdjustedPos(position)
+            return
+        }
+        const rect = menuRef.current.getBoundingClientRect()
+        const x = Math.min(position.x, window.innerWidth - rect.width - 8)
+        const y = Math.min(position.y, window.innerHeight - rect.height - 8)
+        setAdjustedPos({ x: Math.max(0, x), y: Math.max(0, y) })
+    }, [position])
+
     if (!position) return null
 
     return (
@@ -146,8 +172,8 @@ export function AddNodeSubmenu({
             ref={menuRef}
             className="fixed z-50 w-72 max-h-[70vh] overflow-y-auto bg-surface-dark border border-border-dark rounded-lg shadow-2xl py-1 animate-in fade-in zoom-in-95 duration-100"
             style={{
-                left: position.x,
-                top: position.y,
+                left: adjustedPos?.x ?? position.x,
+                top: adjustedPos?.y ?? position.y,
             }}
         >
             {/* Utility Nodes */}

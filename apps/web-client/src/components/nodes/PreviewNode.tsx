@@ -4,6 +4,7 @@
 
 import { memo } from 'react'
 import { BaseNode } from './BaseNode'
+import { useAppStore } from '@/store/appStore'
 import type { PreviewNodeData } from '@/types/nodeGraph'
 
 interface PreviewNodeProps {
@@ -13,8 +14,14 @@ interface PreviewNodeProps {
 }
 
 function PreviewNodeComponent({ id, data, selected }: PreviewNodeProps) {
+    const { updateNodeData } = useAppStore()
+
+    const handleToggleCollapse = () => {
+        updateNodeData(id, { collapsed: !data.collapsed })
+    }
+
     return (
-        <BaseNode id={id} data={data} selected={selected} headerColor="bg-violet-600">
+        <BaseNode id={id} data={data} selected={selected} headerColor="bg-violet-600" onToggleCollapse={handleToggleCollapse}>
             <div className="space-y-2">
                 {/* Preview Display */}
                 <div className="relative aspect-video bg-background-dark rounded overflow-hidden min-h-[100px] flex items-center justify-center">

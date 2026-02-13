@@ -6,6 +6,7 @@ import { memo } from 'react'
 import { BaseNode } from './BaseNode'
 import { useAppStore } from '@/store/appStore'
 import type { SaveImageNodeData } from '@/types/nodeGraph'
+import { API_BASE } from '@/config'
 
 interface SaveImageNodeProps {
     id: string
@@ -56,7 +57,7 @@ function SaveImageNodeComponent({ id, data, selected }: SaveImageNodeProps) {
                         <button
                             onClick={async () => {
                                 try {
-                                    const response = await fetch('http://localhost:8005/system/pick-directory')
+                                    const response = await fetch(`${API_BASE}/system/pick-directory`)
                                     const data = await response.json()
                                     if (data.success && data.path) {
                                         handleFolderSelect(data.path)
